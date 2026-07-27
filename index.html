@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Børsspil</title>
+<meta name="description" content="Fiktivt børsspil med simulerede kurser. Kun til underholdning og læring." />
+<meta name="theme-color" content="#0B0E11" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<style>
+  html, body { margin: 0; padding: 0; background: #0B0E11; }
+  * { box-sizing: border-box; }
+  @keyframes scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @media (max-width: 720px) {
+    .boersspil-grid { grid-template-columns: 1fr !important; }
+    .boersspil-grid > div:last-child { margin-top: 4px; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const START_CASH = 100000;
+const TICK_MS = 2500;
+const HISTORY_LEN = 40;
+const MAX_CATCHUP_TICKS = 200;
+const SAVE_KEY = "boersspil_save_v1";
+const LEADERBOARD_KEY = "boersspil_leaderboard_v1"; // lokalt på denne enhed/browser
+
+// OBS: Kurser er simulerede, ikke rigtige realtidskurser.
+const SEED_STOCKS = [
+  { id: "NOVO-B", name: "Novo Nordisk", price: 680, vol: 0.018, category: "Stabil" },
+  { id: "MAERSK-B", name: "A.P. Møller - Mærsk", price: 12500, vol: 0.02, category: "Cyklisk" },
+  { id: "ORSTED", name: "Ørsted", price: 385, vol: 0.025, category: "Vækst" },
+  { id: "VWS", name: "Vestas Wind Systems", price: 145, vol: 0.03, category: "Vækst" },
+  { id: "CARL-B", name: "Carlsberg", price: 900, vol: 0.012, category: "Stabil" },
+  { id: "DSV", name: "DSV", price: 1180, vol: 0.02, category: "Cyklisk" },
+  { id: "NZYM-B", name: "Novozymes", price: 460, vol: 0.015, category: "Stabil" },
+  { id: "GMAB", name: "Genmab", price: 2050, vol: 0.028, category: "Vækst" },
+  { id: "COLO-B", name: "Coloplast", price: 850, vol: 0.014, category: "Stabil" },
+  { id: "DANSKE", name: "Danske Bank", price: 205, vol: 0.02, category: "Cyklisk" },
+  { id: "PNDORA", name: "Pandora", price: 1350, vol: 0.03, category: "Cyklisk" },
+  { id: "AMBU-B", name: "Ambu", price: 105, vol: 0.032, category: "Vækst" },
+];
+
+const NEWS_UP = [
+  "overrasker markedet med stærkere regnskab end ventet",
+  "får opgraderet anbefaling af flere analytikere",
+  "vinder stor ny kontrakt",
+  "løfter forventningerne til resten af året",
+  "nyder godt af stigende efterspørgsel",
+];
+const NEWS_DOWN = [
+  "skuffer med regnskab under forventning",
+  "nedjusteres af flere analytikere",
+  "taber en stor kunde",
+  "advarer om lavere indtjening end ventet",
+  "rammes af stigende omkostninger",
+];
+
+const CATEGORY_COLORS = {
+  Stabil: { bg: "rgba(74,144,217,0.15)", fg: "#6FA8E8" },
+  Vækst: { bg: "rgba(176,132,240,0.15)", fg: "#B084F0" },
+  Cyklisk: { bg: "rgba(232,163,61,0.15)", fg: "#E8A33D" },
+};
+
+function tickPrice(price, vol) {
+  const bigMove = Math.random() < 0.06;
+  const magnitude = bigMove ? vol * (6 + Math.random() * 10) : vol;
+  const drift = (Math.random() - 0.48) * magnitude;
+  const next = Math.max(0.5, price * (1 + drift));
+  return { price: Math.round(next * 100) / 100, bigMove };
+}
+
+function formatKr(n) {
+  return n.toLocaleString("da-DK", { maximumFractionDigits: 2 }) + " kr";
+}
+function formatTime(ts) {
+  return new Date(ts).toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" });
+}
+
+// Simpel selvskrevet sparkline (ingen ekstern grafbibliotek nødvendig)
+function Sparkline({ data, color, height = 32 }) {
+  if (!data || data.length < 2) return <div style={{ height }} />;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const w = 100;
+  const points = data
+    .map((v, i) => {
+      const x = (i / (data.length - 1)) * w;
+      const y = height - ((v - min) / range) * height;
+      return `${x},${y}`;
+    })
+    .join(" ");
+  return (
+    <svg width="100%" height={height} viewBox={`0 0 ${w} ${height}`} preserveAspectRatio="none">
+      <polyline points={points} fill="none" stroke={color} strokeWidth="2" />
+    </svg>
+  );
+}
+
+function Icon({ children, size = 14 }) {
+  return <span style={{ fontSize: size, lineHeight: 1, display: "inline-flex" }}>{children}</span>;
+}
+
+function Boersspil() {
+  const [playerName, setPlayerName] = useState("");
+  const [nameInput, setNameInput] = useState("");
+  const [cash, setCash] = useState(START_CASH);
+  const [holdings, setHoldings] = useState({});
+  const [trades, setTrades] = useState([]);
+  const [news, setNews] = useState([]);
+  const [stocks, setStocks] = useState(
+    SEED_STOCKS.map((s) => ({ ...s, prev: s.price, history: [s.price] }))
+  );
+  const [selected, setSelected] = useState(null);
+  const [qtyInput, setQtyInput] = useState(1);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [loadedStorage, setLoadedStorage] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [resetConfirm, setResetConfirm] = useState(false);
+  const tickRef = useRef(null);
+  const resetTimerRef = useRef(null);
+  const stateRef = useRef({});
+
+  stateRef.current = { cash, holdings, trades, stocks, playerName };
+
+  const showToast = useCallback((message, type = "info") => {
+    setToast({ message, type });
+    setTimeout(() => setToast((t) => (t && t.message === message ? null : t)), 3000);
+  }, []);
+
+  // Kurssimulering
+  useEffect(() => {
+    tickRef.current = setInterval(() => {
+      setStocks((prev) => {
+        const newsItems = [];
+        const updated = prev.map((s) => {
+          const { price: next, bigMove } = tickPrice(s.price, s.vol);
+          if (bigMove) {
+            const up = next > s.price;
+            const pool = up ? NEWS_UP : NEWS_DOWN;
+            const headline = pool[Math.floor(Math.random() * pool.length)];
+            newsItems.push({
+              id: `${s.id}-${Date.now()}-${Math.random()}`,
+              stockName: s.name,
+              headline,
+              up,
+              time: Date.now(),
+            });
+          }
+          const hist = [...s.history, next].slice(-HISTORY_LEN);
+          return { ...s, prev: s.price, price: next, history: hist };
+        });
+        if (newsItems.length) setNews((n) => [...newsItems, ...n].slice(0, 8));
+        return updated;
+      });
+    }, TICK_MS);
+    return () => clearInterval(tickRef.current);
+  }, []);
+
+  // Indlæs gemt spil fra localStorage + "indhent" kurser for tid der er gået
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        setPlayerName(data.playerName || "");
+        setCash(data.cash ?? START_CASH);
+        setHoldings(data.holdings || {});
+        setTrades(data.trades || []);
+        if (data.stockPrices && data.lastTick) {
+          const elapsed = Date.now() - data.lastTick;
+          const ticks = Math.min(Math.floor(elapsed / TICK_MS), MAX_CATCHUP_TICKS);
+          setStocks((prev) =>
+            prev.map((s) => {
+              let price = data.stockPrices[s.id] ?? s.price;
+              for (let i = 0; i < ticks; i++) price = tickPrice(price, s.vol).price;
+              return { ...s, prev: price, price, history: [price] };
+            })
+          );
+        }
+      }
+    } catch (e) {}
+    setLoadedStorage(true);
+  }, []);
+
+  const saveNow = useCallback((overrides = {}) => {
+    const base = stateRef.current;
+    const cashVal = overrides.cash ?? base.cash;
+    const holdingsVal = overrides.holdings ?? base.holdings;
+    const tradesVal = overrides.trades ?? base.trades;
+    try {
+      const priceMap = {};
+      base.stocks.forEach((s) => (priceMap[s.id] = s.price));
+      localStorage.setItem(
+        SAVE_KEY,
+        JSON.stringify({
+          playerName: base.playerName,
+          cash: cashVal,
+          holdings: holdingsVal,
+          trades: tradesVal,
+          stockPrices: priceMap,
+          lastTick: Date.now(),
+        })
+      );
+    } catch (e) {
+      showToast("Kunne ikke gemme dit spil lige nu", "error");
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    if (!loadedStorage || !playerName) return;
+    const t = setInterval(() => saveNow(), 8000);
+    return () => clearInterval(t);
+  }, [loadedStorage, playerName, saveNow]);
+
+  const portfolioValue = stocks.reduce((sum, s) => {
+    const h = holdings[s.id];
+    return sum + (h ? h.qty * s.price : 0);
+  }, 0);
+  const totalValue = cash + portfolioValue;
+  const pl = totalValue - START_CASH;
+  const plPct = (pl / START_CASH) * 100;
+
+  // Leaderboard er LOKALT på denne enhed/browser (ingen delt server i denne version)
+  const updateLeaderboard = useCallback(() => {
+    if (!playerName) return;
+    try {
+      const raw = localStorage.getItem(LEADERBOARD_KEY);
+      const entries = raw ? JSON.parse(raw) : {};
+      entries[playerName] = { name: playerName, value: totalValue };
+      localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(entries));
+      const sorted = Object.values(entries).sort((a, b) => b.value - a.value);
+      setLeaderboard(sorted.slice(0, 6));
+    } catch (e) {
+      showToast("Kunne ikke opdatere leaderboard lige nu", "error");
+    }
+  }, [playerName, totalValue, showToast]);
+
+  useEffect(() => {
+    if (!playerName) return;
+    updateLeaderboard();
+    const t = setInterval(updateLeaderboard, 5000);
+    return () => clearInterval(t);
+  }, [playerName, updateLeaderboard]);
+
+  const buy = (stock, qty) => {
+    const cost = stock.price * qty;
+    if (cost > cash || qty <= 0) return;
+    const newCash = cash - cost;
+    const existing = holdings[stock.id];
+    const newQty = (existing?.qty || 0) + qty;
+    const newAvg = existing ? (existing.avgCost * existing.qty + cost) / newQty : stock.price;
+    const newHoldings = { ...holdings, [stock.id]: { qty: newQty, avgCost: newAvg } };
+    const trade = { id: `${Date.now()}-${Math.random()}`, type: "køb", stockId: stock.id, stockName: stock.name, qty, price: stock.price, total: cost, time: Date.now() };
+    const newTrades = [trade, ...trades].slice(0, 20);
+    setCash(newCash);
+    setHoldings(newHoldings);
+    setTrades(newTrades);
+    showToast(`Købte ${qty} stk ${stock.name} for ${formatKr(cost)}`, "buy");
+    saveNow({ cash: newCash, holdings: newHoldings, trades: newTrades });
+  };
+
+  const sell = (stock, qty) => {
+    const h = holdings[stock.id];
+    if (!h || qty <= 0 || qty > h.qty) return;
+    const proceeds = stock.price * qty;
+    const newCash = cash + proceeds;
+    const remaining = h.qty - qty;
+    const newHoldings = { ...holdings };
+    if (remaining <= 0) delete newHoldings[stock.id];
+    else newHoldings[stock.id] = { ...h, qty: remaining };
+    const trade = { id: `${Date.now()}-${Math.random()}`, type: "sælg", stockId: stock.id, stockName: stock.name, qty, price: stock.price, total: proceeds, time: Date.now() };
+    const newTrades = [trade, ...trades].slice(0, 20);
+    setCash(newCash);
+    setHoldings(newHoldings);
+    setTrades(newTrades);
+    showToast(`Solgte ${qty} stk ${stock.name} for ${formatKr(proceeds)}`, "sell");
+    saveNow({ cash: newCash, holdings: newHoldings, trades: newTrades });
+  };
+
+  const requestReset = () => {
+    if (!resetConfirm) {
+      setResetConfirm(true);
+      resetTimerRef.current = setTimeout(() => setResetConfirm(false), 4000);
+      return;
+    }
+    clearTimeout(resetTimerRef.current);
+    setResetConfirm(false);
+    setCash(START_CASH);
+    setHoldings({});
+    setTrades([]);
+    showToast("Spillet er nulstillet — du starter forfra", "info");
+    saveNow({ cash: START_CASH, holdings: {}, trades: [] });
+  };
+
+  if (!playerName) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.loginCard}>
+          <div style={styles.logoRow}>
+            <div style={styles.logoDot} />
+            <span style={styles.logoText}>BØRSSPIL</span>
+          </div>
+          <p style={styles.loginSub}>Fiktive penge. Simulerede kurser. Ægte lærdom.</p>
+          <div style={styles.disclaimerBox}>
+            Simulerede kurser — ikke ægte realtidsdata · Fiktive spillepenge — ingen rigtige penge
+            involveret · Ikke tilknyttet de nævnte virksomheder · Kun til underholdning og læring
+          </div>
+          <input
+            style={styles.input}
+            placeholder="Dit spillernavn"
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && nameInput.trim() && setPlayerName(nameInput.trim())}
+          />
+          <button style={styles.startBtn} disabled={!nameInput.trim()} onClick={() => setPlayerName(nameInput.trim())}>
+            Start med {formatKr(START_CASH)}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={styles.page}>
+      <div style={styles.tickerWrap}>
+        <div style={styles.tickerTrack}>
+          {[...stocks, ...stocks].map((s, i) => {
+            const up = s.price >= s.prev;
+            return (
+              <span key={i} style={styles.tickerItem}>
+                <span style={styles.tickerSym}>{s.id}</span>
+                <span style={{ color: up ? "#00D97E" : "#FF4757" }}>{s.price.toFixed(2)} {up ? "▲" : "▼"}</span>
+              </span>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={styles.disclaimerBanner}>
+        ⚠ Simulerede kurser — ikke ægte realtidsdata · Fiktive spillepenge — ingen rigtige penge
+        involveret · Ikke tilknyttet de nævnte virksomheder · Kun til underholdning og læring
+      </div>
+
+      <div style={styles.container}>
+        <div style={styles.topBar}>
+          <div>
+            <div style={styles.eyebrow}>SPILLER</div>
+            <div style={styles.playerName}>{playerName}</div>
+          </div>
+          <div style={styles.balances}>
+            <div style={styles.balanceBox}>
+              <div style={styles.balanceLabel}><Icon>💰</Icon> Kontant</div>
+              <div style={styles.balanceValue}>{formatKr(cash)}</div>
+            </div>
+            <div style={styles.balanceBox}>
+              <div style={styles.balanceLabel}>Total værdi</div>
+              <div style={styles.balanceValue}>{formatKr(totalValue)}</div>
+            </div>
+            <div style={styles.balanceBox}>
+              <div style={styles.balanceLabel}>Afkast</div>
+              <div style={{ ...styles.balanceValue, color: pl >= 0 ? "#00D97E" : "#FF4757" }}>
+                {pl >= 0 ? "+" : ""}{plPct.toFixed(1)}%
+              </div>
+            </div>
+            <button style={styles.resetBtn} onClick={requestReset}>
+              <Icon>↺</Icon> {resetConfirm ? "Sikker? Tryk igen" : "Nulstil spil"}
+            </button>
+          </div>
+        </div>
+
+        <div className="boersspil-grid" style={styles.grid}>
+          <div style={styles.stockList}>
+            {stocks.map((s) => {
+              const up = s.price >= s.prev;
+              const held = holdings[s.id];
+              const cat = CATEGORY_COLORS[s.category];
+              return (
+                <div key={s.id} style={styles.stockRow} onClick={() => { setSelected(s); setQtyInput(1); }}>
+                  <div style={styles.stockLeft}>
+                    <div style={styles.stockTopRow}>
+                      <span style={styles.stockSym}>{s.id}</span>
+                      <span style={{ ...styles.categoryBadge, background: cat.bg, color: cat.fg }}>{s.category}</span>
+                    </div>
+                    <div style={styles.stockName}>{s.name}</div>
+                    {held && <div style={styles.heldBadge}>{held.qty} stk</div>}
+                  </div>
+                  <div style={styles.sparkWrap}>
+                    <Sparkline data={s.history} color={up ? "#00D97E" : "#FF4757"} />
+                  </div>
+                  <div style={styles.stockRight}>
+                    <div style={styles.stockPrice}>{s.price.toFixed(2)}</div>
+                    <div style={{ ...styles.stockChange, color: up ? "#00D97E" : "#FF4757" }}>
+                      {up ? "▲" : "▼"} {(((s.price - s.prev) / s.prev) * 100).toFixed(2)}%
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={styles.sidebarCol}>
+            <div style={styles.sidebar}>
+              <div style={styles.panelTitle}><Icon>🏆</Icon> LEADERBOARD</div>
+              <div style={styles.leaderboard}>
+                {leaderboard.length === 0 && <div style={styles.leaderboardEmpty}>Spil lidt, så dukker du op her.</div>}
+                {leaderboard.map((p, i) => (
+                  <div key={p.name} style={{ ...styles.leaderRow, background: p.name === playerName ? "rgba(0,217,126,0.1)" : "transparent" }}>
+                    <span style={styles.leaderRank}>{i + 1}</span>
+                    <span style={styles.leaderName}>{p.name}</span>
+                    <span style={styles.leaderValue}>{formatKr(p.value)}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 11, color: "#5A6472", marginTop: 8, lineHeight: 1.5 }}>
+                Leaderboard er lokalt på denne enhed/browser i denne version — ikke delt med andre.
+              </div>
+            </div>
+
+            <div style={styles.sidebar}>
+              <div style={{ ...styles.panelTitle, color: "#7FB3E8" }}><Icon>📰</Icon> NYHEDER</div>
+              <div style={styles.newsList}>
+                {news.length === 0 && <div style={styles.leaderboardEmpty}>Ingen store nyheder endnu.</div>}
+                {news.map((n) => (
+                  <div key={n.id} style={styles.newsItem}>
+                    <span style={{ color: n.up ? "#00D97E" : "#FF4757", fontWeight: 700 }}>{n.stockName}</span> {n.headline}
+                    <div style={styles.newsTime}>{formatTime(n.time)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={styles.tradesPanel}>
+          <div style={{ ...styles.panelTitle, color: "#8A939F" }}><Icon>🕘</Icon> DINE HANDLER</div>
+          {trades.length === 0 ? (
+            <div style={styles.leaderboardEmpty}>Ingen handler endnu — køb din første aktie ovenfor.</div>
+          ) : (
+            <div style={styles.tradesList}>
+              {trades.map((t) => (
+                <div key={t.id} style={styles.tradeRow}>
+                  <span style={{ ...styles.tradeType, color: t.type === "køb" ? "#00D97E" : "#FF4757", background: t.type === "køb" ? "rgba(0,217,126,0.12)" : "rgba(255,71,87,0.12)" }}>{t.type}</span>
+                  <span style={styles.tradeStock}>{t.qty} stk {t.stockName}</span>
+                  <span style={styles.tradeTotal}>{formatKr(t.total)}</span>
+                  <span style={styles.tradeTime}>{formatTime(t.time)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {selected && (
+        <div style={styles.modalOverlay} onClick={() => setSelected(null)}>
+          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <div>
+                <div style={styles.modalSym}>{selected.id}</div>
+                <div style={styles.modalName}>{selected.name}</div>
+              </div>
+              <button style={styles.closeBtn} onClick={() => setSelected(null)}>✕</button>
+            </div>
+            <div style={styles.modalPrice}>{selected.price.toFixed(2)} kr / aktie</div>
+            <Sparkline data={selected.history} color="#00D97E" height={80} />
+            {holdings[selected.id] && (
+              <div style={styles.holdingInfo}>Du ejer {holdings[selected.id].qty} stk, snitkøb {holdings[selected.id].avgCost.toFixed(2)} kr</div>
+            )}
+            <div style={styles.qtyRow}>
+              <button style={styles.qtyBtn} onClick={() => setQtyInput((q) => Math.max(1, q - 1))}>−</button>
+              <input style={styles.qtyInput} type="number" value={qtyInput} onChange={(e) => setQtyInput(Math.max(1, parseInt(e.target.value) || 1))} />
+              <button style={styles.qtyBtn} onClick={() => setQtyInput((q) => q + 1)}>+</button>
+            </div>
+            <div style={styles.costPreview}>Total: {formatKr(selected.price * qtyInput)}</div>
+            <div style={styles.maxRow}>
+              <button style={styles.maxBtn} disabled={Math.floor(cash / selected.price) < 1} onClick={() => setQtyInput(Math.max(1, Math.floor(cash / selected.price)))}>
+                Maks køb ({Math.floor(cash / selected.price)} stk)
+              </button>
+              <button style={styles.maxBtn} disabled={!holdings[selected.id]} onClick={() => setQtyInput(holdings[selected.id]?.qty || 1)}>
+                Maks sælg ({holdings[selected.id]?.qty || 0} stk)
+              </button>
+            </div>
+            <div style={styles.actionRow}>
+              <button style={{ ...styles.actionBtn, background: "#00D97E" }} disabled={selected.price * qtyInput > cash} onClick={() => { buy(selected, qtyInput); setSelected(null); }}>Køb</button>
+              <button style={{ ...styles.actionBtn, background: "#FF4757" }} disabled={!holdings[selected.id] || qtyInput > (holdings[selected.id]?.qty || 0)} onClick={() => { sell(selected, qtyInput); setSelected(null); }}>Sælg</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div style={{ ...styles.toast, borderColor: toast.type === "error" ? "#FF4757" : toast.type === "sell" ? "#FF4757" : "#00D97E" }}>
+          <span>{toast.type === "error" ? "⚠" : "✓"}</span>
+          <span>{toast.message}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const styles = {
+  page: { minHeight: "100vh", background: "#0B0E11", fontFamily: "system-ui, sans-serif", color: "#E4E7EB" },
+  loginCard: { maxWidth: 380, margin: "80px auto", background: "#12161B", border: "1px solid #22282F", borderRadius: 12, padding: "32px 28px", display: "flex", flexDirection: "column", gap: 14 },
+  logoRow: { display: "flex", alignItems: "center", gap: 8 },
+  logoDot: { width: 10, height: 10, borderRadius: "50%", background: "#00D97E", boxShadow: "0 0 8px #00D97E" },
+  logoText: { fontFamily: "'IBM Plex Mono', monospace", letterSpacing: 3, fontSize: 15, fontWeight: 700 },
+  loginSub: { fontSize: 13, color: "#8A939F", margin: 0 },
+  disclaimerBox: { background: "#1A1006", border: "1px solid #4A3A1E", borderRadius: 8, padding: "12px 14px", fontSize: 12, lineHeight: 1.6, color: "#D8B978" },
+  input: { background: "#0B0E11", border: "1px solid #2B323B", borderRadius: 8, padding: "12px 14px", color: "#E4E7EB", fontSize: 15, outline: "none" },
+  startBtn: { background: "#00D97E", color: "#062017", border: "none", borderRadius: 8, padding: "13px", fontWeight: 700, fontSize: 15, cursor: "pointer" },
+  disclaimerBanner: { background: "#1A1006", borderBottom: "1px solid #4A3A1E", color: "#D8B978", fontSize: 11.5, textAlign: "center", padding: "7px 12px", lineHeight: 1.5 },
+  tickerWrap: { overflow: "hidden", background: "#12161B", borderBottom: "1px solid #22282F", padding: "8px 0" },
+  tickerTrack: { display: "flex", gap: 28, whiteSpace: "nowrap", animation: "scroll 22s linear infinite", width: "max-content" },
+  tickerItem: { display: "flex", gap: 6, fontFamily: "'IBM Plex Mono', monospace", fontSize: 12.5 },
+  tickerSym: { color: "#5A6472", fontWeight: 700 },
+  container: { maxWidth: 900, margin: "0 auto", padding: "20px 16px 60px" },
+  topBar: { display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 20, flexWrap: "wrap", gap: 12 },
+  eyebrow: { fontSize: 11, letterSpacing: 2, color: "#5A6472" },
+  playerName: { fontSize: 20, fontWeight: 700 },
+  balances: { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" },
+  balanceBox: { background: "#12161B", border: "1px solid #22282F", borderRadius: 8, padding: "8px 14px" },
+  balanceLabel: { display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#5A6472" },
+  balanceValue: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 15, fontWeight: 700 },
+  resetBtn: { display: "flex", alignItems: "center", gap: 6, background: "transparent", border: "1px solid #2B323B", color: "#8A939F", borderRadius: 8, padding: "8px 12px", fontSize: 11.5, cursor: "pointer" },
+  grid: { display: "grid", gridTemplateColumns: "1fr 240px", gap: 16 },
+  stockList: { display: "flex", flexDirection: "column", gap: 8 },
+  stockRow: { display: "flex", alignItems: "center", gap: 12, background: "#12161B", border: "1px solid #22282F", borderRadius: 10, padding: "12px 14px", cursor: "pointer" },
+  stockLeft: { minWidth: 140 },
+  stockTopRow: { display: "flex", alignItems: "center", gap: 6 },
+  stockSym: { fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 14 },
+  categoryBadge: { fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 6 },
+  stockName: { fontSize: 12, color: "#8A939F" },
+  heldBadge: { display: "inline-block", marginTop: 3, fontSize: 10, background: "rgba(0,217,126,0.15)", color: "#00D97E", padding: "1px 6px", borderRadius: 8 },
+  sparkWrap: { flex: 1, height: 32 },
+  stockRight: { textAlign: "right", minWidth: 80 },
+  stockPrice: { fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 15 },
+  stockChange: { display: "flex", alignItems: "center", gap: 3, justifyContent: "flex-end", fontSize: 12, fontFamily: "'IBM Plex Mono', monospace" },
+  sidebarCol: { display: "flex", flexDirection: "column", gap: 12 },
+  sidebar: { background: "#12161B", border: "1px solid #22282F", borderRadius: 10, padding: 14, height: "fit-content" },
+  panelTitle: { display: "flex", alignItems: "center", gap: 6, fontSize: 12, letterSpacing: 1, color: "#FFB800", fontWeight: 700, marginBottom: 10 },
+  leaderboard: { display: "flex", flexDirection: "column", gap: 4 },
+  leaderboardEmpty: { fontSize: 12, color: "#5A6472" },
+  leaderRow: { display: "flex", alignItems: "center", gap: 8, padding: "6px 6px", borderRadius: 6, fontSize: 12.5 },
+  leaderRank: { color: "#5A6472", width: 14, fontFamily: "'IBM Plex Mono', monospace" },
+  leaderName: { flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  leaderValue: { fontFamily: "'IBM Plex Mono', monospace", color: "#00D97E", fontWeight: 700 },
+  newsList: { display: "flex", flexDirection: "column", gap: 10 },
+  newsItem: { fontSize: 12.5, lineHeight: 1.5, color: "#C7CCD4", borderBottom: "1px solid #1C2127", paddingBottom: 8 },
+  newsTime: { fontSize: 10.5, color: "#5A6472", marginTop: 3 },
+  tradesPanel: { marginTop: 16, background: "#12161B", border: "1px solid #22282F", borderRadius: 10, padding: 14 },
+  tradesList: { display: "flex", flexDirection: "column", gap: 6 },
+  tradeRow: { display: "flex", alignItems: "center", gap: 10, fontSize: 12.5, padding: "6px 4px", flexWrap: "wrap" },
+  tradeType: { fontWeight: 700, fontSize: 11, padding: "2px 8px", borderRadius: 10, textTransform: "uppercase" },
+  tradeStock: { flex: 1, color: "#C7CCD4" },
+  tradeTotal: { fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700 },
+  tradeTime: { fontSize: 11, color: "#5A6472", minWidth: 42, textAlign: "right" },
+  modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 10 },
+  modal: { background: "#12161B", border: "1px solid #22282F", borderRadius: 14, padding: 22, width: "100%", maxWidth: 360, display: "flex", flexDirection: "column", gap: 12 },
+  modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" },
+  modalSym: { fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: 18 },
+  modalName: { fontSize: 13, color: "#8A939F" },
+  closeBtn: { background: "transparent", border: "none", color: "#8A939F", cursor: "pointer", fontSize: 16 },
+  modalPrice: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 22, fontWeight: 700, color: "#00D97E" },
+  holdingInfo: { fontSize: 12, color: "#8A939F", background: "#0B0E11", padding: "8px 10px", borderRadius: 6 },
+  qtyRow: { display: "flex", alignItems: "center", gap: 10 },
+  qtyBtn: { width: 34, height: 34, borderRadius: 8, background: "#22282F", color: "#E4E7EB", border: "none", fontSize: 18, cursor: "pointer" },
+  qtyInput: { flex: 1, textAlign: "center", background: "#0B0E11", border: "1px solid #2B323B", borderRadius: 8, padding: "8px", color: "#E4E7EB", fontSize: 15, outline: "none" },
+  costPreview: { fontSize: 13, color: "#8A939F", textAlign: "center" },
+  maxRow: { display: "flex", gap: 8 },
+  maxBtn: { flex: 1, background: "#0B0E11", border: "1px solid #2B323B", borderRadius: 8, color: "#8A939F", fontSize: 11.5, padding: "8px 6px", cursor: "pointer", fontFamily: "'IBM Plex Mono', monospace" },
+  actionRow: { display: "flex", gap: 10 },
+  actionBtn: { flex: 1, border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 15, color: "#062017", cursor: "pointer" },
+  toast: { position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)", background: "#12161B", border: "1px solid", borderRadius: 10, padding: "10px 16px", display: "flex", alignItems: "center", gap: 8, fontSize: 13, boxShadow: "0 10px 30px rgba(0,0,0,0.4)", zIndex: 20, maxWidth: "90vw" },
+};
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<Boersspil />);
+</script>
+
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>
