@@ -21,6 +21,8 @@
     .boersspil-grid { grid-template-columns: 1fr !important; }
     .boersspil-grid > div:last-child { margin-top: 4px; }
   }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button:focus-visible, input:focus-visible { outline: 2px solid #00D97E; outline-offset: 2px; }
 </style>
 </head>
 <body>
@@ -140,6 +142,20 @@ function tickPrice(price, vol) {
   return {
     price: Math.round(next * 100) / 100,
     bigMove
+  };
+}
+function getTrend(price, prev) {
+  if (price > prev) return {
+    color: "#00D97E",
+    symbol: "▲"
+  };
+  if (price < prev) return {
+    color: "#FF4757",
+    symbol: "▼"
+  };
+  return {
+    color: "#8A939F",
+    symbol: "▬"
   };
 }
 function formatKr(n) {
@@ -464,13 +480,16 @@ function Boersspil() {
   const renamePlayer = () => {
     const newName = window.prompt("Skift dit spillernavn:", playerName);
     if (!newName || !newName.trim() || newName.trim() === playerName) return;
-    const trimmed = newName.trim();
+    const trimmed = newName.trim().slice(0, 24);
     setPlayerName(trimmed);
     showToast(`Navn ændret til ${trimmed}`, "info");
     saveNow({
       playerName: trimmed
     });
   };
+  useEffect(() => {
+    return () => clearTimeout(resetTimerRef.current);
+  }, []);
   useEffect(() => {
     if (!loadedStorage || !playerName) return;
     const t = setInterval(() => saveNow(), 8000);
@@ -589,6 +608,9 @@ function Boersspil() {
       style: styles.input,
       placeholder: "Dit spillernavn",
       value: nameInput,
+      maxLength: 24,
+      autoFocus: true,
+      autoComplete: "off",
       onChange: e => setNameInput(e.target.value),
       onKeyDown: e => e.key === "Enter" && nameInput.trim() && setPlayerName(nameInput.trim())
     }), /*#__PURE__*/React.createElement("button", {
@@ -604,7 +626,7 @@ function Boersspil() {
   }, /*#__PURE__*/React.createElement("div", {
     style: styles.tickerTrack
   }, [...stocks, ...stocks].map((s, i) => {
-    const up = s.price >= s.prev;
+    const trend = getTrend(s.price, s.prev);
     return /*#__PURE__*/React.createElement("span", {
       key: i,
       style: styles.tickerItem
@@ -612,16 +634,22 @@ function Boersspil() {
       style: styles.tickerSym
     }, s.id), /*#__PURE__*/React.createElement("span", {
       style: {
-        color: up ? "#00D97E" : "#FF4757"
+        color: trend.color
       }
-    }, s.price.toFixed(2), " ", up ? "▲" : "▼"));
+    }, s.price.toFixed(2), " ", trend.symbol));
   }))), /*#__PURE__*/React.createElement("div", {
     style: styles.disclaimerBanner
   }, /*#__PURE__*/React.createElement("span", {
     style: styles.disclaimerBannerInner
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      flexShrink: 0,
+      display: "flex",
+      paddingTop: 2
+    }
   }, /*#__PURE__*/React.createElement(IconAlertTriangle, {
     size: 13
-  }), "Simulerede kurser — ikke ægte realtidsdata · Fiktive spillepenge — ingen rigtige penge involveret · Ikke tilknyttet de nævnte virksomheder · Kun til underholdning og læring")), /*#__PURE__*/React.createElement("div", {
+  })), "Simulerede kurser — ikke ægte realtidsdata · Fiktive spillepenge — ingen rigtige penge involveret · Ikke tilknyttet de nævnte virksomheder · Kun til underholdning og læring")), /*#__PURE__*/React.createElement("div", {
     style: styles.container
   }, /*#__PURE__*/React.createElement("div", {
     style: styles.topBar
@@ -669,7 +697,7 @@ function Boersspil() {
   }, /*#__PURE__*/React.createElement("div", {
     style: styles.stockList
   }, stocks.map(s => {
-    const up = s.price >= s.prev;
+    const trend = getTrend(s.price, s.prev);
     const held = holdings[s.id];
     const cat = CATEGORY_COLORS[s.category];
     return /*#__PURE__*/React.createElement("div", {
@@ -699,7 +727,7 @@ function Boersspil() {
       style: styles.sparkWrap
     }, /*#__PURE__*/React.createElement(Sparkline, {
       data: s.history,
-      color: up ? "#00D97E" : "#FF4757"
+      color: trend.color
     })), /*#__PURE__*/React.createElement("div", {
       style: styles.stockRight
     }, /*#__PURE__*/React.createElement("div", {
@@ -707,9 +735,9 @@ function Boersspil() {
     }, s.price.toFixed(2)), /*#__PURE__*/React.createElement("div", {
       style: {
         ...styles.stockChange,
-        color: up ? "#00D97E" : "#FF4757"
+        color: trend.color
       }
-    }, up ? "▲" : "▼", " ", ((s.price - s.prev) / s.prev * 100).toFixed(2), "%")));
+    }, trend.symbol, " ", ((s.price - s.prev) / s.prev * 100).toFixed(2), "%")));
   })), /*#__PURE__*/React.createElement("div", {
     style: styles.sidebarCol
   }, /*#__PURE__*/React.createElement("div", {
@@ -722,7 +750,7 @@ function Boersspil() {
   }, /*#__PURE__*/React.createElement(IconNewspaper, null), " NYHEDER"), /*#__PURE__*/React.createElement("div", {
     style: styles.newsList
   }, news.length === 0 && /*#__PURE__*/React.createElement("div", {
-    style: styles.leaderboardEmpty
+    style: styles.emptyState
   }, "Ingen store nyheder endnu."), news.map(n => /*#__PURE__*/React.createElement("div", {
     key: n.id,
     style: styles.newsItem
@@ -741,7 +769,7 @@ function Boersspil() {
       color: "#8A939F"
     }
   }, /*#__PURE__*/React.createElement(IconHistory, null), " DINE HANDLER"), trades.length === 0 ? /*#__PURE__*/React.createElement("div", {
-    style: styles.leaderboardEmpty
+    style: styles.emptyState
   }, "Ingen handler endnu — køb din første aktie ovenfor.") : /*#__PURE__*/React.createElement("div", {
     style: styles.tradesList
   }, trades.map(t => /*#__PURE__*/React.createElement("div", {
@@ -773,7 +801,8 @@ function Boersspil() {
     style: styles.modalName
   }, selected.name)), /*#__PURE__*/React.createElement("button", {
     style: styles.closeBtn,
-    onClick: () => setSelected(null)
+    onClick: () => setSelected(null),
+    "aria-label": "Luk"
   }, /*#__PURE__*/React.createElement(IconX, {
     size: 18
   }))), /*#__PURE__*/React.createElement("div", {
@@ -792,6 +821,8 @@ function Boersspil() {
   }, "−"), /*#__PURE__*/React.createElement("input", {
     style: styles.qtyInput,
     type: "number",
+    inputMode: "numeric",
+    min: "1",
     value: qtyInput,
     onChange: e => setQtyInput(Math.max(1, parseInt(e.target.value) || 1))
   }), /*#__PURE__*/React.createElement("button", {
@@ -969,7 +1000,11 @@ const styles = {
   },
   playerName: {
     fontSize: 20,
-    fontWeight: 700
+    fontWeight: 700,
+    maxWidth: 220,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap"
   },
   playerNameRow: {
     display: "flex",
@@ -1120,7 +1155,7 @@ const styles = {
     fontWeight: 700,
     marginBottom: 10
   },
-  leaderboardEmpty: {
+  emptyState: {
     fontSize: 12,
     color: "#5A6472"
   },
