@@ -1206,6 +1206,61 @@ const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(/*#__PURE__*/React.createElement(Boersspil, null));
 </script>
 
+
+<div id="install-banner" style="display:none; position:fixed; left:12px; right:12px; bottom:16px; z-index:9999; background:#12161B; border:1px solid #22282F; border-radius:12px; padding:14px 16px; box-shadow:0 10px 30px rgba(0,0,0,0.5); font-family: system-ui, sans-serif; color:#E4E7EB;">
+  <div id="install-banner-text" style="font-size:13px; line-height:1.5; margin-bottom:10px;"></div>
+  <div style="display:flex; gap:8px;">
+    <button id="install-banner-action" style="flex:1; background:#00D97E; color:#062017; border:none; border-radius:8px; padding:10px; font-weight:700; font-size:13px; cursor:pointer; display:none;">Installer app</button>
+    <button id="install-banner-close" style="background:transparent; border:1px solid #2B323B; color:#8A939F; border-radius:8px; padding:10px 14px; font-size:13px; cursor:pointer;">Luk</button>
+  </div>
+</div>
+<script>
+(function () {
+  var DISMISS_KEY = "boersspil_install_banner_dismissed";
+  var isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+  if (isStandalone) return;
+  if (localStorage.getItem(DISMISS_KEY)) return;
+
+  var banner = document.getElementById("install-banner");
+  var text = document.getElementById("install-banner-text");
+  var actionBtn = document.getElementById("install-banner-action");
+  var closeBtn = document.getElementById("install-banner-close");
+
+  var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  var deferredPrompt = null;
+
+  function showBanner() {
+    banner.style.display = "block";
+  }
+
+  closeBtn.addEventListener("click", function () {
+    banner.style.display = "none";
+    localStorage.setItem(DISMISS_KEY, "1");
+  });
+
+  if (isIOS) {
+    text.textContent = "Føj denne app til din hjemmeskærm: tryk Del-ikonet nederst, og vælg \"Føj til hjemmeskærm\".";
+    showBanner();
+  } else {
+    window.addEventListener("beforeinstallprompt", function (e) {
+      e.preventDefault();
+      deferredPrompt = e;
+      text.textContent = "Installer Børsspil som en app på din enhed.";
+      actionBtn.style.display = "block";
+      showBanner();
+    });
+    actionBtn.addEventListener("click", function () {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.finally(function () {
+        deferredPrompt = null;
+        banner.style.display = "none";
+      });
+    });
+  }
+})();
+</script>
+
 <script>
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
