@@ -9,6 +9,7 @@
 <link rel="manifest" href="manifest.json" />
 <link rel="apple-touch-icon" href="icon-192.png" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Børsspil" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <style>
   html, body { margin: 0; padding: 0; background: #0B0E11; }
@@ -356,6 +357,51 @@ function IconX({
     d: "M6 6l12 12"
   }));
 }
+function IconBook({
+  size = 13
+}) {
+  return /*#__PURE__*/React.createElement("svg", {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, /*#__PURE__*/React.createElement("path", {
+    d: "M12 7v14"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "M4 6a2 2 0 0 1 2-2h6v14H6a2 2 0 0 0-2 2Z"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "M20 6a2 2 0 0 0-2-2h-6v14h6a2 2 0 0 1 2 2Z"
+  }));
+}
+const LEARN_SECTIONS = [{
+  title: "Hvad er en aktie?",
+  body: "En aktie er en lille ejerandel i et selskab. Køber du en aktie i Novo Nordisk, ejer du en lillebitte del af virksomheden. Stiger virksomhedens værdi, stiger aktien typisk også — og omvendt hvis det går dårligt."
+}, {
+  title: "Stabile aktier",
+  color: "#6FA8E8",
+  body: "Store, kendte selskaber med jævn indtjening år efter år — tænk forbrugsvarer, medicin, mad og drikke. De svinger typisk mindre i pris, både op og ned. Godt for dem der vil have færre overraskelser, men de vokser sjældent eksplosivt."
+}, {
+  title: "Vækstaktier",
+  color: "#B084F0",
+  body: "Selskaber markedet forventer vil vokse meget hurtigere end gennemsnittet — ofte indenfor teknologi, energi eller bioteknologi. De kan stige kraftigt, men kan også falde kraftigt, hvis væksten udebliver. Højere risiko, højere potentiel gevinst."
+}, {
+  title: "Cykliske aktier",
+  color: "#E8A33D",
+  body: "Selskaber hvis indtjening følger økonomien op og ned — som shipping, banker og luksusvarer. Går det godt i samfundet generelt, går det ofte godt for dem også, og omvendt i nedgangstider. Timing betyder meget for disse aktier."
+}, {
+  title: "Risiko og udsving (volatilitet)",
+  body: "Volatilitet er et udtryk for hvor meget en akties kurs svinger. Høj volatilitet betyder store udsving — mulighed for store gevinster, men også store tab på kort tid. Lav volatilitet er roligere, men typisk også med mere begrænset opside."
+}, {
+  title: "Spred dine æg ud (diversificering)",
+  body: "At sprede sine penge over flere forskellige aktier og kategorier, i stedet for at satse alt på én, mindsker risikoen. Går én aktie dårligt, vejer det ikke helt så tungt hvis resten af porteføljen klarer sig fint."
+}, {
+  title: "Langsigtet vs. kortsigtet",
+  body: "Historisk set har aktiemarkedet som helhed givet et positivt afkast over mange år, selvom det svinger meget fra dag til dag. Kortsigtet spekulation (at gætte på op- og nedture) er markant sværere og mere risikabelt end en langsigtet strategi."
+}];
 function Boersspil() {
   const [playerName, setPlayerName] = useState("");
   const [nameInput, setNameInput] = useState("");
@@ -369,6 +415,7 @@ function Boersspil() {
     history: [s.price]
   })));
   const [selected, setSelected] = useState(null);
+  const [showLearn, setShowLearn] = useState(false);
   const [qtyInput, setQtyInput] = useState(1);
   const [loadedStorage, setLoadedStorage] = useState(false);
   const [toast, setToast] = useState(null);
@@ -690,6 +737,9 @@ function Boersspil() {
     }
   }, pl >= 0 ? "+" : "", plPct.toFixed(1), "%")), /*#__PURE__*/React.createElement("button", {
     style: styles.resetBtn,
+    onClick: () => setShowLearn(true)
+  }, /*#__PURE__*/React.createElement(IconBook, null), " Lær om aktier"), /*#__PURE__*/React.createElement("button", {
+    style: styles.resetBtn,
     onClick: requestReset
   }, /*#__PURE__*/React.createElement(IconUndo, null), " ", resetConfirm ? "Sikker? Tryk igen" : "Nulstil spil"))), /*#__PURE__*/React.createElement("div", {
     className: "boersspil-grid",
@@ -862,7 +912,37 @@ function Boersspil() {
       sell(selected, qtyInput);
       setSelected(null);
     }
-  }, "Sælg")))), toast && /*#__PURE__*/React.createElement("div", {
+  }, "Sælg")))), showLearn && /*#__PURE__*/React.createElement("div", {
+    style: styles.modalOverlay,
+    onClick: () => setShowLearn(false)
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.learnModal,
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.modalHeader
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.modalSym
+  }, "Lær om aktier"), /*#__PURE__*/React.createElement("button", {
+    style: styles.closeBtn,
+    onClick: () => setShowLearn(false),
+    "aria-label": "Luk"
+  }, /*#__PURE__*/React.createElement(IconX, {
+    size: 18
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: styles.learnScroll
+  }, LEARN_SECTIONS.map((section, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: styles.learnSection
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...styles.learnTitle,
+      color: section.color || "#E4E7EB"
+    }
+  }, section.title), /*#__PURE__*/React.createElement("div", {
+    style: styles.learnBody
+  }, section.body))), /*#__PURE__*/React.createElement("div", {
+    style: styles.learnFooter
+  }, "Dette er generel viden til at forstå spillet — ikke finansiel rådgivning eller anbefalinger om rigtige investeringer.")))), toast && /*#__PURE__*/React.createElement("div", {
     style: {
       ...styles.toast,
       borderColor: toast.type === "error" ? "#FF4757" : toast.type === "sell" ? "#FF4757" : "#00D97E"
@@ -1237,6 +1317,45 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: 12
+  },
+  learnModal: {
+    background: "#12161B",
+    border: "1px solid #22282F",
+    borderRadius: 14,
+    padding: 22,
+    width: "100%",
+    maxWidth: 420,
+    maxHeight: "80vh",
+    display: "flex",
+    flexDirection: "column",
+    gap: 14
+  },
+  learnScroll: {
+    overflowY: "auto",
+    display: "flex",
+    flexDirection: "column",
+    gap: 16,
+    paddingRight: 2
+  },
+  learnSection: {
+    borderBottom: "1px solid #1C2127",
+    paddingBottom: 14
+  },
+  learnTitle: {
+    fontWeight: 700,
+    fontSize: 14.5,
+    marginBottom: 6
+  },
+  learnBody: {
+    fontSize: 13,
+    lineHeight: 1.6,
+    color: "#C7CCD4"
+  },
+  learnFooter: {
+    fontSize: 11.5,
+    color: "#5A6472",
+    lineHeight: 1.5,
+    paddingTop: 2
   },
   modalHeader: {
     display: "flex",
