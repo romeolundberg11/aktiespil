@@ -377,6 +377,22 @@ function IconBook({
     d: "M20 6a2 2 0 0 0-2-2h-6v14h6a2 2 0 0 1 2 2Z"
   }));
 }
+function IconChevronRight({
+  size = 16
+}) {
+  return /*#__PURE__*/React.createElement("svg", {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, /*#__PURE__*/React.createElement("path", {
+    d: "m9 6 6 6-6 6"
+  }));
+}
 const LEARN_SECTIONS = [{
   title: "Hvad er en aktie?",
   body: "En aktie er en lille ejerandel i et selskab. Køber du en aktie i Novo Nordisk, ejer du en lillebitte del af virksomheden. Stiger virksomhedens værdi, stiger aktien typisk også — og omvendt hvis det går dårligt."
@@ -737,11 +753,23 @@ function Boersspil() {
     }
   }, pl >= 0 ? "+" : "", plPct.toFixed(1), "%")), /*#__PURE__*/React.createElement("button", {
     style: styles.resetBtn,
-    onClick: () => setShowLearn(true)
-  }, /*#__PURE__*/React.createElement(IconBook, null), " Lær om aktier"), /*#__PURE__*/React.createElement("button", {
-    style: styles.resetBtn,
     onClick: requestReset
-  }, /*#__PURE__*/React.createElement(IconUndo, null), " ", resetConfirm ? "Sikker? Tryk igen" : "Nulstil spil"))), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(IconUndo, null), " ", resetConfirm ? "Sikker? Tryk igen" : "Nulstil spil"))), /*#__PURE__*/React.createElement("button", {
+    style: styles.learnBanner,
+    onClick: () => setShowLearn(true)
+  }, /*#__PURE__*/React.createElement("span", {
+    style: styles.learnBannerIcon
+  }, /*#__PURE__*/React.createElement(IconBook, {
+    size: 20
+  })), /*#__PURE__*/React.createElement("span", {
+    style: styles.learnBannerText
+  }, /*#__PURE__*/React.createElement("span", {
+    style: styles.learnBannerTitle
+  }, "Lær om aktier"), /*#__PURE__*/React.createElement("span", {
+    style: styles.learnBannerSub
+  }, "Vækst, stabil, cyklisk og mere — det vigtigste på 2 minutter")), /*#__PURE__*/React.createElement(IconChevronRight, {
+    size: 18
+  })), /*#__PURE__*/React.createElement("div", {
     className: "boersspil-grid",
     style: styles.grid
   }, /*#__PURE__*/React.createElement("div", {
@@ -1139,6 +1167,39 @@ const styles = {
     padding: "8px 12px",
     fontSize: 11.5,
     cursor: "pointer"
+  },
+  learnBanner: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    width: "100%",
+    background: "linear-gradient(135deg, rgba(176,132,240,0.16), rgba(111,168,232,0.12))",
+    border: "1px solid rgba(176,132,240,0.35)",
+    borderRadius: 12,
+    padding: "14px 16px",
+    marginBottom: 16,
+    cursor: "pointer",
+    color: "#E4E7EB",
+    textAlign: "left"
+  },
+  learnBannerIcon: {
+    color: "#B084F0",
+    flexShrink: 0,
+    display: "flex"
+  },
+  learnBannerText: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+    flex: 1
+  },
+  learnBannerTitle: {
+    fontSize: 15,
+    fontWeight: 700
+  },
+  learnBannerSub: {
+    fontSize: 12,
+    color: "#A9AFB8"
   },
   grid: {
     display: "grid",
