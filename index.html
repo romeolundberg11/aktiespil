@@ -40,7 +40,7 @@ const {
   useCallback
 } = React;
 const START_CASH = 100000;
-const TICK_MS = 2500;
+const TICK_MS = 5000;
 const HISTORY_LEN = 40;
 const MAX_CATCHUP_TICKS = 200;
 const SAVE_KEY = "boersspil_save_v1";
@@ -393,6 +393,65 @@ function IconChevronRight({
     d: "m9 6 6 6-6 6"
   }));
 }
+function IconStar({
+  size = 16,
+  filled = false
+}) {
+  return /*#__PURE__*/React.createElement("svg", {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: filled ? "currentColor" : "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, /*#__PURE__*/React.createElement("path", {
+    d: "m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01Z"
+  }));
+}
+function IconAward({
+  size = 14
+}) {
+  return /*#__PURE__*/React.createElement("svg", {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, /*#__PURE__*/React.createElement("circle", {
+    cx: "12",
+    cy: "8",
+    r: "6"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "M8.5 13.5 7 22l5-3 5 3-1.5-8.5"
+  }));
+}
+function IconLock({
+  size = 14
+}) {
+  return /*#__PURE__*/React.createElement("svg", {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, /*#__PURE__*/React.createElement("rect", {
+    x: "3",
+    y: "11",
+    width: "18",
+    height: "11",
+    rx: "2"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "M7 11V7a5 5 0 0 1 10 0v4"
+  }));
+}
 const LEARN_SECTIONS = [{
   title: "Hvad er en aktie?",
   body: "En aktie er en lille ejerandel i et selskab. Køber du en aktie i Novo Nordisk, ejer du en lillebitte del af virksomheden. Stiger virksomhedens værdi, stiger aktien typisk også — og omvendt hvis det går dårligt."
@@ -418,6 +477,83 @@ const LEARN_SECTIONS = [{
   title: "Langsigtet vs. kortsigtet",
   body: "Historisk set har aktiemarkedet som helhed givet et positivt afkast over mange år, selvom det svinger meget fra dag til dag. Kortsigtet spekulation (at gætte på op- og nedture) er markant sværere og mere risikabelt end en langsigtet strategi."
 }];
+const BADGES = [{
+  id: "first_trade",
+  title: "Første handel",
+  desc: "Du gennemførte din første handel"
+}, {
+  id: "doubled",
+  title: "Fordoblet din formue",
+  desc: "Din samlede værdi nåede det dobbelte af din startkapital"
+}, {
+  id: "survived_crash",
+  title: "Overlevede et stort kursfald",
+  desc: "En af dine aktier faldt kraftigt, mens du stadig ejede den"
+}];
+const QUIZ_QUESTIONS = [{
+  q: "Hvilken type aktie svinger typisk mindst i pris?",
+  options: ["Vækstaktier", "Stabile aktier", "Cykliske aktier"],
+  correct: 1
+}, {
+  q: "Hvad betyder høj volatilitet?",
+  options: ["Kursen svinger meget", "Kursen er helt stabil", "Aktien er billig"],
+  correct: 0
+}, {
+  q: "Hvorfor sprede sine penge over flere aktier (diversificering)?",
+  options: ["For at få garanteret højere afkast", "For at mindske risikoen hvis én aktie klarer sig dårligt", "Det er lovpligtigt"],
+  correct: 1
+}, {
+  q: "Hvilke aktier følger ofte økonomien op og ned?",
+  options: ["Cykliske aktier", "Stabile aktier", "Alle aktier ens"],
+  correct: 0
+}, {
+  q: "Hvad er typisk sandt om vækstaktier?",
+  options: ["De svinger sjældent", "De kan stige og falde kraftigt", "De findes kun i USA"],
+  correct: 1
+}, {
+  q: "Hvad er en aktie helt grundlæggende?",
+  options: ["Et lån til en virksomhed", "En lille ejerandel i en virksomhed", "En garanteret indtægt"],
+  correct: 1
+}, {
+  q: "Hvad er typisk sandt om langsigtet investering sammenlignet med kortsigtet spekulation?",
+  options: ["Kortsigtet er markant sværere og mere risikabelt", "Langsigtet giver aldrig noget afkast", "Der er ingen forskel"],
+  correct: 0
+}, {
+  q: "Hvilken type selskab hører oftest til under 'stabile aktier'?",
+  options: ["Et lille tech-startup", "Et stort, kendt forbrugsvareselskab", "Et rederi"],
+  correct: 1
+}, {
+  q: "Hvad betyder det at 'sætte en stop-loss' på en aktie?",
+  options: ["At man aldrig kan sælge aktien igen", "At man får besked hvis kursen falder til en grænse man selv sætter", "At man automatisk fordobler sin investering"],
+  correct: 1
+}, {
+  q: "Hvorfor kan cykliske aktier være mere risikable i en økonomisk nedgangstid?",
+  options: ["Fordi deres indtjening ofte falder sammen med resten af økonomien", "Fordi de aldrig svinger i pris", "Fordi de kun findes i Danmark"],
+  correct: 0
+}];
+function shuffleArray(arr) {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+function buildQuiz() {
+  const chosen = shuffleArray(QUIZ_QUESTIONS).slice(0, 5);
+  return chosen.map(q => {
+    const withFlag = q.options.map((opt, i) => ({
+      opt,
+      isCorrect: i === q.correct
+    }));
+    const shuffledOptions = shuffleArray(withFlag);
+    return {
+      q: q.q,
+      options: shuffledOptions.map(o => o.opt),
+      correct: shuffledOptions.findIndex(o => o.isCorrect)
+    };
+  });
+}
 function Boersspil() {
   const [playerName, setPlayerName] = useState("");
   const [nameInput, setNameInput] = useState("");
@@ -436,6 +572,14 @@ function Boersspil() {
   const [loadedStorage, setLoadedStorage] = useState(false);
   const [toast, setToast] = useState(null);
   const [resetConfirm, setResetConfirm] = useState(false);
+  const [favorites, setFavorites] = useState({});
+  const [stopLoss, setStopLoss] = useState({});
+  const [stopLossInput, setStopLossInput] = useState("");
+  const [badges, setBadges] = useState({});
+  const [quizStep, setQuizStep] = useState(-1);
+  const [quizAnswer, setQuizAnswer] = useState(null);
+  const [quizScore, setQuizScore] = useState(0);
+  const [activeQuiz, setActiveQuiz] = useState([]);
   const tickRef = useRef(null);
   const resetTimerRef = useRef(null);
   const stateRef = useRef({});
@@ -444,7 +588,10 @@ function Boersspil() {
     holdings,
     trades,
     stocks,
-    playerName
+    playerName,
+    favorites,
+    stopLoss,
+    badges
   };
   const showToast = useCallback((message, type = "info") => {
     setToast({
@@ -453,19 +600,31 @@ function Boersspil() {
     });
     setTimeout(() => setToast(t => t && t.message === message ? null : t), 3000);
   }, []);
+  const unlockBadge = useCallback(id => {
+    setBadges(prev => {
+      if (prev[id]) return prev;
+      const badge = BADGES.find(b => b.id === id);
+      showToast(`Ny badge: ${badge ? badge.title : id}`, "info");
+      return {
+        ...prev,
+        [id]: Date.now()
+      };
+    });
+  }, [showToast]);
 
   // Kurssimulering
   useEffect(() => {
     tickRef.current = setInterval(() => {
       setStocks(prev => {
         const newsItems = [];
+        const triggeredStopLossIds = [];
         const updated = prev.map(s => {
           const {
             price: next,
             bigMove
           } = tickPrice(s.price, s.vol);
+          const up = next > s.price;
           if (bigMove) {
-            const up = next > s.price;
             const pool = up ? NEWS_UP : NEWS_DOWN;
             const headline = pool[Math.floor(Math.random() * pool.length)];
             newsItems.push({
@@ -475,6 +634,19 @@ function Boersspil() {
               up,
               time: Date.now()
             });
+            const heldQty = stateRef.current.holdings[s.id]?.qty || 0;
+            if (heldQty > 0 && !up) {
+              unlockBadge("survived_crash");
+            }
+            if (stateRef.current.favorites[s.id]) {
+              showToast(`${s.name} ${up ? "steg" : "faldt"} kraftigt til ${next.toFixed(2)} kr`, up ? "buy" : "sell");
+            }
+          }
+          const slConfig = stateRef.current.stopLoss[s.id];
+          const heldQtyForSL = stateRef.current.holdings[s.id]?.qty || 0;
+          if (slConfig && !slConfig.triggered && heldQtyForSL > 0 && next <= slConfig.price) {
+            triggeredStopLossIds.push(s.id);
+            showToast(`Stop-loss ramt: ${s.name} er faldet til ${next.toFixed(2)} kr (din grænse: ${formatKr(slConfig.price)})`, "error");
           }
           const hist = [...s.history, next].slice(-HISTORY_LEN);
           return {
@@ -485,11 +657,25 @@ function Boersspil() {
           };
         });
         if (newsItems.length) setNews(n => [...newsItems, ...n].slice(0, 8));
+        if (triggeredStopLossIds.length) {
+          setStopLoss(prevSL => {
+            const nextSL = {
+              ...prevSL
+            };
+            triggeredStopLossIds.forEach(id => {
+              if (nextSL[id]) nextSL[id] = {
+                ...nextSL[id],
+                triggered: true
+              };
+            });
+            return nextSL;
+          });
+        }
         return updated;
       });
     }, TICK_MS);
     return () => clearInterval(tickRef.current);
-  }, []);
+  }, [showToast, unlockBadge]);
 
   // Indlæs gemt spil fra localStorage + "indhent" kurser for tid der er gået
   useEffect(() => {
@@ -501,6 +687,9 @@ function Boersspil() {
         setCash(data.cash ?? START_CASH);
         setHoldings(data.holdings || {});
         setTrades(data.trades || []);
+        setFavorites(data.favorites || {});
+        setStopLoss(data.stopLoss || {});
+        setBadges(data.badges || {});
         if (data.stockPrices && data.lastTick) {
           const elapsed = Date.now() - data.lastTick;
           const ticks = Math.min(Math.floor(elapsed / TICK_MS), MAX_CATCHUP_TICKS);
@@ -525,6 +714,9 @@ function Boersspil() {
     const holdingsVal = overrides.holdings ?? base.holdings;
     const tradesVal = overrides.trades ?? base.trades;
     const nameVal = overrides.playerName ?? base.playerName;
+    const favoritesVal = overrides.favorites ?? base.favorites;
+    const stopLossVal = overrides.stopLoss ?? base.stopLoss;
+    const badgesVal = overrides.badges ?? base.badges;
     try {
       const priceMap = {};
       base.stocks.forEach(s => priceMap[s.id] = s.price);
@@ -533,6 +725,9 @@ function Boersspil() {
         cash: cashVal,
         holdings: holdingsVal,
         trades: tradesVal,
+        favorites: favoritesVal,
+        stopLoss: stopLossVal,
+        badges: badgesVal,
         stockPrices: priceMap,
         lastTick: Date.now()
       }));
@@ -558,6 +753,49 @@ function Boersspil() {
     const t = setInterval(() => saveNow(), 8000);
     return () => clearInterval(t);
   }, [loadedStorage, playerName, saveNow]);
+  useEffect(() => {
+    if (!loadedStorage || !playerName) return;
+    saveNow();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [favorites, stopLoss, badges]);
+  useEffect(() => {
+    if (trades.length >= 1) unlockBadge("first_trade");
+  }, [trades.length, unlockBadge]);
+  const toggleFavorite = id => {
+    setFavorites(prev => {
+      const next = {
+        ...prev
+      };
+      if (next[id]) delete next[id];else next[id] = true;
+      return next;
+    });
+  };
+  const setStopLossFor = stock => {
+    const val = parseFloat(stopLossInput);
+    if (!val || val <= 0) {
+      showToast("Angiv en gyldig kurs for stop-loss", "error");
+      return;
+    }
+    setStopLoss(prev => ({
+      ...prev,
+      [stock.id]: {
+        price: val,
+        triggered: false
+      }
+    }));
+    showToast(`Stop-loss sat for ${stock.name} ved ${formatKr(val)}`, "info");
+  };
+  const removeStopLoss = stock => {
+    setStopLoss(prev => {
+      const next = {
+        ...prev
+      };
+      delete next[stock.id];
+      return next;
+    });
+    setStopLossInput("");
+    showToast(`Stop-loss fjernet for ${stock.name}`, "info");
+  };
   const portfolioValue = stocks.reduce((sum, s) => {
     const h = holdings[s.id];
     return sum + (h ? h.qty * s.price : 0);
@@ -565,6 +803,14 @@ function Boersspil() {
   const totalValue = cash + portfolioValue;
   const pl = totalValue - START_CASH;
   const plPct = pl / START_CASH * 100;
+  useEffect(() => {
+    if (totalValue >= START_CASH * 2) unlockBadge("doubled");
+  }, [totalValue, unlockBadge]);
+  useEffect(() => {
+    if (selected) {
+      setStopLossInput(stopLoss[selected.id] && !stopLoss[selected.id].triggered ? String(stopLoss[selected.id].price) : "");
+    }
+  }, [selected]);
   const buy = (stock, qty) => {
     const cost = stock.price * qty;
     if (cost > cash || qty <= 0) return;
@@ -770,6 +1016,23 @@ function Boersspil() {
   }, "Vækst, stabil, cyklisk og mere — det vigtigste på 2 minutter")), /*#__PURE__*/React.createElement(IconChevronRight, {
     size: 18
   })), /*#__PURE__*/React.createElement("div", {
+    style: styles.badgeStrip
+  }, BADGES.map(b => {
+    const unlocked = !!badges[b.id];
+    return /*#__PURE__*/React.createElement("div", {
+      key: b.id,
+      style: {
+        ...styles.badgePill,
+        borderColor: unlocked ? "rgba(0,217,126,0.4)" : "#22282F",
+        color: unlocked ? "#00D97E" : "#5A6472"
+      },
+      title: b.desc
+    }, unlocked ? /*#__PURE__*/React.createElement(IconAward, {
+      size: 13
+    }) : /*#__PURE__*/React.createElement(IconLock, {
+      size: 13
+    }), b.title);
+  })), /*#__PURE__*/React.createElement("div", {
     className: "boersspil-grid",
     style: styles.grid
   }, /*#__PURE__*/React.createElement("div", {
@@ -778,6 +1041,7 @@ function Boersspil() {
     const trend = getTrend(s.price, s.prev);
     const held = holdings[s.id];
     const cat = CATEGORY_COLORS[s.category];
+    const isFav = !!favorites[s.id];
     return /*#__PURE__*/React.createElement("div", {
       key: s.id,
       style: styles.stockRow,
@@ -785,7 +1049,20 @@ function Boersspil() {
         setSelected(s);
         setQtyInput(1);
       }
-    }, /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement("button", {
+      style: {
+        ...styles.starBtn,
+        color: isFav ? "#FFB800" : "#3A4048"
+      },
+      onClick: e => {
+        e.stopPropagation();
+        toggleFavorite(s.id);
+      },
+      "aria-label": isFav ? "Fjern fra favoritter" : "Tilføj til favoritter"
+    }, /*#__PURE__*/React.createElement(IconStar, {
+      size: 15,
+      filled: isFav
+    })), /*#__PURE__*/React.createElement("div", {
       style: styles.stockLeft
     }, /*#__PURE__*/React.createElement("div", {
       style: styles.stockTopRow
@@ -877,13 +1154,29 @@ function Boersspil() {
     style: styles.modalSym
   }, selected.id), /*#__PURE__*/React.createElement("div", {
     style: styles.modalName
-  }, selected.name)), /*#__PURE__*/React.createElement("button", {
+  }, selected.name)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    style: {
+      ...styles.starBtn,
+      color: favorites[selected.id] ? "#FFB800" : "#3A4048",
+      padding: 4
+    },
+    onClick: () => toggleFavorite(selected.id),
+    "aria-label": favorites[selected.id] ? "Fjern fra favoritter" : "Tilføj til favoritter"
+  }, /*#__PURE__*/React.createElement(IconStar, {
+    size: 18,
+    filled: !!favorites[selected.id]
+  })), /*#__PURE__*/React.createElement("button", {
     style: styles.closeBtn,
     onClick: () => setSelected(null),
     "aria-label": "Luk"
   }, /*#__PURE__*/React.createElement(IconX, {
     size: 18
-  }))), /*#__PURE__*/React.createElement("div", {
+  })))), /*#__PURE__*/React.createElement("div", {
     style: styles.modalPrice
   }, selected.price.toFixed(2), " kr / aktie"), /*#__PURE__*/React.createElement(Sparkline, {
     data: selected.history,
@@ -940,7 +1233,30 @@ function Boersspil() {
       sell(selected, qtyInput);
       setSelected(null);
     }
-  }, "Sælg")))), showLearn && /*#__PURE__*/React.createElement("div", {
+  }, "Sælg")), holdings[selected.id] && /*#__PURE__*/React.createElement("div", {
+    style: styles.stopLossBox
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.stopLossLabel
+  }, "Stop-loss (sælg-alarm)"), stopLoss[selected.id] && !stopLoss[selected.id].triggered ? /*#__PURE__*/React.createElement("div", {
+    style: styles.stopLossActive
+  }, /*#__PURE__*/React.createElement("span", null, "Aktiv ved ", formatKr(stopLoss[selected.id].price)), /*#__PURE__*/React.createElement("button", {
+    style: styles.stopLossRemoveBtn,
+    onClick: () => removeStopLoss(selected)
+  }, "Fjern")) : /*#__PURE__*/React.createElement("div", {
+    style: styles.stopLossRow
+  }, /*#__PURE__*/React.createElement("input", {
+    style: styles.stopLossInput,
+    type: "number",
+    inputMode: "decimal",
+    placeholder: "Kurs, fx 300",
+    value: stopLossInput,
+    onChange: e => setStopLossInput(e.target.value)
+  }), /*#__PURE__*/React.createElement("button", {
+    style: styles.stopLossSetBtn,
+    onClick: () => setStopLossFor(selected)
+  }, "Sæt alarm")), /*#__PURE__*/React.createElement("div", {
+    style: styles.stopLossHint
+  }, "Du får besked i appen hvis kursen falder til eller under din grænse, mens du ejer aktien.")))), showLearn && /*#__PURE__*/React.createElement("div", {
     style: styles.modalOverlay,
     onClick: () => setShowLearn(false)
   }, /*#__PURE__*/React.createElement("div", {
@@ -956,7 +1272,7 @@ function Boersspil() {
     "aria-label": "Luk"
   }, /*#__PURE__*/React.createElement(IconX, {
     size: 18
-  }))), /*#__PURE__*/React.createElement("div", {
+  }))), quizStep === -1 && /*#__PURE__*/React.createElement("div", {
     style: styles.learnScroll
   }, LEARN_SECTIONS.map((section, i) => /*#__PURE__*/React.createElement("div", {
     key: i,
@@ -970,7 +1286,79 @@ function Boersspil() {
     style: styles.learnBody
   }, section.body))), /*#__PURE__*/React.createElement("div", {
     style: styles.learnFooter
-  }, "Dette er generel viden til at forstå spillet — ikke finansiel rådgivning eller anbefalinger om rigtige investeringer.")))), toast && /*#__PURE__*/React.createElement("div", {
+  }, "Dette er generel viden til at forstå spillet — ikke finansiel rådgivning eller anbefalinger om rigtige investeringer."), /*#__PURE__*/React.createElement("button", {
+    style: styles.quizStartBtn,
+    onClick: () => {
+      setActiveQuiz(buildQuiz());
+      setQuizStep(0);
+      setQuizAnswer(null);
+      setQuizScore(0);
+    }
+  }, "Test din viden ", /*#__PURE__*/React.createElement(IconChevronRight, {
+    size: 16
+  }))), quizStep >= 0 && quizStep < activeQuiz.length && /*#__PURE__*/React.createElement("div", {
+    style: styles.learnScroll
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.quizProgress
+  }, "Spørgsmål ", quizStep + 1, " af ", activeQuiz.length), /*#__PURE__*/React.createElement("div", {
+    style: styles.quizQuestion
+  }, activeQuiz[quizStep].q), /*#__PURE__*/React.createElement("div", {
+    style: styles.quizOptions
+  }, activeQuiz[quizStep].options.map((opt, i) => {
+    let bg = "#0B0E11";
+    let border = "#2B323B";
+    if (quizAnswer !== null) {
+      if (i === activeQuiz[quizStep].correct) {
+        bg = "rgba(0,217,126,0.12)";
+        border = "#00D97E";
+      } else if (i === quizAnswer) {
+        bg = "rgba(255,71,87,0.12)";
+        border = "#FF4757";
+      }
+    }
+    return /*#__PURE__*/React.createElement("button", {
+      key: i,
+      style: {
+        ...styles.quizOption,
+        background: bg,
+        borderColor: border
+      },
+      onClick: () => {
+        if (quizAnswer !== null) return;
+        setQuizAnswer(i);
+        if (i === activeQuiz[quizStep].correct) setQuizScore(s => s + 1);
+      }
+    }, opt);
+  })), quizAnswer !== null && /*#__PURE__*/React.createElement("button", {
+    style: styles.quizNextBtn,
+    onClick: () => {
+      if (quizStep + 1 < activeQuiz.length) {
+        setQuizStep(s => s + 1);
+        setQuizAnswer(null);
+      } else {
+        setQuizStep(activeQuiz.length);
+      }
+    }
+  }, quizStep + 1 < activeQuiz.length ? "Næste spørgsmål" : "Se resultat")), quizStep === activeQuiz.length && activeQuiz.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: styles.learnScroll
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.quizResultBox
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.quizResultScore
+  }, quizScore, " / ", activeQuiz.length), /*#__PURE__*/React.createElement("div", {
+    style: styles.quizResultLabel
+  }, "rigtige svar")), /*#__PURE__*/React.createElement("button", {
+    style: styles.quizStartBtn,
+    onClick: () => {
+      setActiveQuiz(buildQuiz());
+      setQuizStep(0);
+      setQuizAnswer(null);
+      setQuizScore(0);
+    }
+  }, "Prøv igen"), /*#__PURE__*/React.createElement("button", {
+    style: styles.quizBackBtn,
+    onClick: () => setQuizStep(-1)
+  }, "Tilbage til gennemgangen")))), toast && /*#__PURE__*/React.createElement("div", {
     style: {
       ...styles.toast,
       borderColor: toast.type === "error" ? "#FF4757" : toast.type === "sell" ? "#FF4757" : "#00D97E"
@@ -1200,6 +1588,34 @@ const styles = {
   learnBannerSub: {
     fontSize: 12,
     color: "#A9AFB8"
+  },
+  badgeStrip: {
+    display: "flex",
+    gap: 8,
+    overflowX: "auto",
+    marginBottom: 16,
+    paddingBottom: 2
+  },
+  badgePill: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    border: "1px solid",
+    borderRadius: 20,
+    padding: "6px 12px",
+    fontSize: 11.5,
+    fontWeight: 600,
+    whiteSpace: "nowrap",
+    flexShrink: 0
+  },
+  starBtn: {
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    flexShrink: 0,
+    padding: 2
   },
   grid: {
     display: "grid",
@@ -1529,6 +1945,138 @@ const styles = {
     boxShadow: "0 10px 30px rgba(0,0,0,0.4)",
     zIndex: 20,
     maxWidth: "90vw"
+  },
+  stopLossBox: {
+    background: "#0B0E11",
+    border: "1px solid #2B323B",
+    borderRadius: 8,
+    padding: "10px 12px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 8
+  },
+  stopLossLabel: {
+    fontSize: 11.5,
+    fontWeight: 700,
+    color: "#8A939F",
+    textTransform: "uppercase",
+    letterSpacing: 0.5
+  },
+  stopLossRow: {
+    display: "flex",
+    gap: 8
+  },
+  stopLossInput: {
+    flex: 1,
+    background: "#12161B",
+    border: "1px solid #2B323B",
+    borderRadius: 6,
+    padding: "8px 10px",
+    color: "#E4E7EB",
+    fontSize: 13,
+    outline: "none"
+  },
+  stopLossSetBtn: {
+    background: "#FF4757",
+    color: "#2A0A0A",
+    border: "none",
+    borderRadius: 6,
+    padding: "8px 14px",
+    fontSize: 12.5,
+    fontWeight: 700,
+    cursor: "pointer"
+  },
+  stopLossActive: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    fontSize: 13,
+    color: "#E4E7EB"
+  },
+  stopLossRemoveBtn: {
+    background: "transparent",
+    border: "1px solid #2B323B",
+    color: "#8A939F",
+    borderRadius: 6,
+    padding: "5px 10px",
+    fontSize: 11.5,
+    cursor: "pointer"
+  },
+  stopLossHint: {
+    fontSize: 11,
+    color: "#5A6472",
+    lineHeight: 1.5
+  },
+  quizStartBtn: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    background: "#B084F0",
+    color: "#1B0E2E",
+    border: "none",
+    borderRadius: 8,
+    padding: "12px",
+    fontWeight: 700,
+    fontSize: 14,
+    cursor: "pointer"
+  },
+  quizBackBtn: {
+    background: "transparent",
+    border: "1px solid #2B323B",
+    color: "#8A939F",
+    borderRadius: 8,
+    padding: "10px",
+    fontSize: 13,
+    cursor: "pointer"
+  },
+  quizProgress: {
+    fontSize: 11.5,
+    color: "#5A6472",
+    fontWeight: 600
+  },
+  quizQuestion: {
+    fontSize: 15.5,
+    fontWeight: 700,
+    lineHeight: 1.4
+  },
+  quizOptions: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8
+  },
+  quizOption: {
+    textAlign: "left",
+    border: "1.5px solid",
+    borderRadius: 8,
+    padding: "11px 14px",
+    fontSize: 13.5,
+    color: "#E4E7EB",
+    cursor: "pointer"
+  },
+  quizNextBtn: {
+    background: "#00D97E",
+    color: "#062017",
+    border: "none",
+    borderRadius: 8,
+    padding: "12px",
+    fontWeight: 700,
+    fontSize: 14,
+    cursor: "pointer"
+  },
+  quizResultBox: {
+    textAlign: "center",
+    padding: "20px 0"
+  },
+  quizResultScore: {
+    fontSize: 36,
+    fontWeight: 800,
+    color: "#B084F0"
+  },
+  quizResultLabel: {
+    fontSize: 13,
+    color: "#8A939F",
+    marginTop: 4
   }
 };
 const root = ReactDOM.createRoot(document.getElementById("root"));
