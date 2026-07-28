@@ -58,7 +58,7 @@ const {
   useCallback
 } = React;
 const START_CASH = 100000;
-const TICK_MS = 5000;
+const TICK_MS = 7500;
 const HISTORY_LEN = 40;
 const MAX_CATCHUP_TICKS = 200;
 const SAVE_KEY = "boersspil_save_v1";
@@ -139,6 +139,8 @@ const SEED_STOCKS = [{
 }];
 const NEWS_UP = ["overrasker markedet med stærkere regnskab end ventet", "får opgraderet anbefaling af flere analytikere", "vinder stor ny kontrakt", "løfter forventningerne til resten af året", "nyder godt af stigende efterspørgsel"];
 const NEWS_DOWN = ["skuffer med regnskab under forventning", "nedjusteres af flere analytikere", "taber en stor kunde", "advarer om lavere indtjening end ventet", "rammes af stigende omkostninger"];
+const RUMOR_UP = ["er i rygternes centrum for et stærkt regnskab — kursen kan stige snart", "nævnes af analytikere som kandidat til en snarlig opgradering", "menes ifølge rygter at have landet en ny storkontrakt"];
+const RUMOR_DOWN = ["er genstand for stigende bekymring blandt investorer — kursen kan falde snart", "rygtes at stå overfor en nedjustering fra analytikere", "kæmper ifølge rygter med stigende omkostninger"];
 const CATEGORY_COLORS = {
   Stabil: {
     bg: "rgba(74,144,217,0.15)",
@@ -153,6 +155,8 @@ const CATEGORY_COLORS = {
     fg: "#E8A33D"
   }
 };
+
+// Bruges kun til at "indhente" kurser når man har været væk (ingen rygte-mekanik nødvendig der)
 function tickPrice(price, vol) {
   const bigMove = Math.random() < 0.06;
   const magnitude = bigMove ? vol * (6 + Math.random() * 10) : vol;
@@ -162,6 +166,16 @@ function tickPrice(price, vol) {
     price: Math.round(next * 100) / 100,
     bigMove
   };
+}
+
+// Lille, almindelig kursbevægelse med et strejf af momentum:
+// en aktie der lige er steget har en anelse større chance for at fortsætte op, og omvendt.
+function tickSmall(price, vol, trend) {
+  const momentumShift = trend > 0 ? 0.04 : trend < 0 ? -0.04 : 0;
+  const threshold = 0.48 - momentumShift;
+  const drift = (Math.random() - threshold) * vol;
+  const next = Math.max(0.5, price * (1 + drift));
+  return Math.round(next * 100) / 100;
 }
 function getTrend(price, prev) {
   if (price > prev) return {
@@ -747,6 +761,7 @@ function Boersspil() {
   const tickRef = useRef(null);
   const resetTimerRef = useRef(null);
   const stateRef = useRef({});
+  const pendingMovesRef = useRef({});
   stateRef.current = {
     cash,
     holdings,
@@ -777,34 +792,70 @@ function Boersspil() {
     });
   }, [showToast]);
 
-  // Kurssimulering
+  // Kurssimulering: rygter dukker op 1-2 opdateringer FØR et stort kurshop rammer,
+  // så en opmærksom spiller kan nå at reagere. Almindelige bevægelser har et strejf af momentum.
   useEffect(() => {
     tickRef.current = setInterval(() => {
       setStocks(prev => {
         const newsItems = [];
         const triggeredStopLossIds = [];
+        const pending = pendingMovesRef.current;
         const updated = prev.map(s => {
-          const {
-            price: next,
-            bigMove
-          } = tickPrice(s.price, s.vol);
-          const up = next > s.price;
-          if (bigMove) {
-            const pool = up ? NEWS_UP : NEWS_DOWN;
-            const headline = pool[Math.floor(Math.random() * pool.length)];
+          const trend = s.price > s.prev ? 1 : s.price < s.prev ? -1 : 0;
+          const scheduled = pending[s.id];
+          let next;
+          let bigMoveNow = false;
+          let upNow = false;
+          if (scheduled) {
+            scheduled.ticksLeft -= 1;
+            if (scheduled.ticksLeft <= 0) {
+              const drift = scheduled.up ? scheduled.magnitude : -scheduled.magnitude;
+              next = Math.round(Math.max(0.5, s.price * (1 + drift)) * 100) / 100;
+              bigMoveNow = true;
+              upNow = scheduled.up;
+              delete pending[s.id];
+            } else {
+              next = tickSmall(s.price, s.vol, trend);
+            }
+          } else {
+            next = tickSmall(s.price, s.vol, trend);
+            if (Math.random() < 0.05) {
+              const up = Math.random() < 0.5;
+              const magnitude = s.vol * (6 + Math.random() * 10);
+              pending[s.id] = {
+                ticksLeft: 1 + Math.floor(Math.random() * 2),
+                magnitude,
+                up
+              };
+              const pool = up ? RUMOR_UP : RUMOR_DOWN;
+              newsItems.push({
+                id: `${s.id}-rumor-${Date.now()}-${Math.random()}`,
+                stockName: s.name,
+                headline: pool[Math.floor(Math.random() * pool.length)],
+                up,
+                rumor: true,
+                time: Date.now()
+              });
+              if (stateRef.current.favorites[s.id]) {
+                showToast(`Rygte om ${s.name}: hold øje, kursen kan snart bevæge sig ${up ? "op" : "ned"}`, "info");
+              }
+            }
+          }
+          if (bigMoveNow) {
+            const pool = upNow ? NEWS_UP : NEWS_DOWN;
             newsItems.push({
               id: `${s.id}-${Date.now()}-${Math.random()}`,
               stockName: s.name,
-              headline,
-              up,
+              headline: pool[Math.floor(Math.random() * pool.length)],
+              up: upNow,
               time: Date.now()
             });
             const heldQty = stateRef.current.holdings[s.id]?.qty || 0;
-            if (heldQty > 0 && !up) {
+            if (heldQty > 0 && !upNow) {
               unlockBadge("survived_crash");
             }
             if (stateRef.current.favorites[s.id]) {
-              showToast(`${s.name} ${up ? "steg" : "faldt"} kraftigt til ${next.toFixed(2)} kr`, up ? "buy" : "sell");
+              showToast(`${s.name} ${upNow ? "steg" : "faldt"} kraftigt til ${next.toFixed(2)} kr`, upNow ? "buy" : "sell");
             }
           }
           const slConfig = stateRef.current.stopLoss[s.id];
@@ -1382,7 +1433,9 @@ function Boersspil() {
   }, "Ingen store nyheder endnu."), news.map(n => /*#__PURE__*/React.createElement("div", {
     key: n.id,
     style: styles.newsItem
-  }, /*#__PURE__*/React.createElement("span", {
+  }, n.rumor && /*#__PURE__*/React.createElement("span", {
+    style: styles.rumorTag
+  }, "RYGTE"), /*#__PURE__*/React.createElement("span", {
     style: {
       color: n.up ? "#00D97E" : "#FF4757",
       fontWeight: 700
@@ -2021,6 +2074,17 @@ const styles = {
     color: "#C7CCD4",
     borderBottom: "1px solid #1C2127",
     paddingBottom: 8
+  },
+  rumorTag: {
+    display: "inline-block",
+    background: "rgba(255,184,0,0.15)",
+    color: "#FFB800",
+    fontSize: 9.5,
+    fontWeight: 700,
+    padding: "1px 6px",
+    borderRadius: 6,
+    marginRight: 6,
+    letterSpacing: 0.5
   },
   newsTime: {
     fontSize: 10.5,
