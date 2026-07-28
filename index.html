@@ -20,6 +20,9 @@
     --text-secondary: #8A939F;
     --text-muted: #5A6472;
     --input-bg: #0B0E11;
+    --warn-bg: #1A1006;
+    --warn-border: #4A3A1E;
+    --warn-text: #D8B978;
   }
   .light-theme {
     --bg-page: #F3F4F6;
@@ -28,6 +31,9 @@
     --text-primary: #1A1D21;
     --text-secondary: #5B6570;
     --text-muted: #848E99;
+    --warn-bg: #FFF7E6;
+    --warn-border: #F0D9A8;
+    --warn-text: #8A6100;
     --input-bg: #F3F4F6;
   }
   html, body { margin: 0; padding: 0; background: var(--bg-page); }
@@ -156,11 +162,21 @@ const CATEGORY_COLORS = {
   }
 };
 
+// Størrelsen af et "stort kurshop" - de fleste gange små/moderate, sjældent virkelig store
+function pickMoveMagnitude() {
+  const r = Math.random();
+  if (r < 0.33) return 0.03 + Math.random() * 0.02; // ~3-5%, mest almindeligt
+  if (r < 0.62) return 0.06 + Math.random() * 0.03; // ~6-9%
+  if (r < 0.80) return 0.10 + Math.random() * 0.05; // ~10-15%
+  if (r < 0.94) return 0.18 + Math.random() * 0.10; // ~18-28%
+  return 0.30 + Math.random() * 0.15; // ~30-45%, sjældent men lidt hyppigere end før
+}
+
 // Bruges kun til at "indhente" kurser når man har været væk (ingen rygte-mekanik nødvendig der)
 function tickPrice(price, vol) {
   const bigMove = Math.random() < 0.06;
-  const magnitude = bigMove ? vol * (6 + Math.random() * 10) : vol;
-  const drift = (Math.random() - 0.48) * magnitude;
+  const magnitude = bigMove ? pickMoveMagnitude() : vol;
+  const drift = bigMove ? Math.random() < 0.5 ? -magnitude : magnitude : (Math.random() - 0.48) * magnitude;
   const next = Math.max(0.5, price * (1 + drift));
   return {
     price: Math.round(next * 100) / 100,
@@ -329,10 +345,10 @@ function IconUndo({
     strokeWidth: "2",
     strokeLinecap: "round",
     strokeLinejoin: "round"
-  }, /*#__PURE__*/React.createElement("path", {
-    d: "M3 7v6h6"
+  }, /*#__PURE__*/React.createElement("polyline", {
+    points: "1 4 1 10 7 10"
   }), /*#__PURE__*/React.createElement("path", {
-    d: "M3.5 13a8.5 8.5 0 1 0 2.3-7.8L3 8"
+    d: "M3.51 15a9 9 0 1 0 2.13-9.36L1 10"
   }));
 }
 function IconAlertTriangle({
@@ -751,6 +767,7 @@ function Boersspil() {
   const [firstPlayedAt, setFirstPlayedAt] = useState(null);
   const [theme, setTheme] = useState("dark");
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
+  const [showOnlyOwned, setShowOnlyOwned] = useState(false);
   const [sortMode, setSortMode] = useState("default");
   const [quizStep, setQuizStep] = useState(-1);
   const [quizAnswer, setQuizAnswer] = useState(null);
@@ -778,7 +795,7 @@ function Boersspil() {
       message,
       type
     });
-    setTimeout(() => setToast(t => t && t.message === message ? null : t), 3000);
+    setTimeout(() => setToast(t => t && t.message === message ? null : t), 6000);
   }, []);
   const unlockBadge = useCallback(id => {
     setBadges(prev => {
@@ -821,7 +838,7 @@ function Boersspil() {
             next = tickSmall(s.price, s.vol, trend);
             if (Math.random() < 0.05) {
               const up = Math.random() < 0.5;
-              const magnitude = s.vol * (6 + Math.random() * 10);
+              const magnitude = pickMoveMagnitude();
               pending[s.id] = {
                 ticksLeft: 1 + Math.floor(Math.random() * 2),
                 magnitude,
@@ -1087,7 +1104,9 @@ function Boersspil() {
   const totalValue = cash + portfolioValue;
   const pl = totalValue - START_CASH;
   const plPct = pl / START_CASH * 100;
-  let displayedStocks = showOnlyFavorites ? stocks.filter(s => favorites[s.id]) : stocks;
+  let displayedStocks = stocks;
+  if (showOnlyFavorites) displayedStocks = displayedStocks.filter(s => favorites[s.id]);
+  if (showOnlyOwned) displayedStocks = displayedStocks.filter(s => (holdings[s.id]?.qty || 0) > 0);
   if (sortMode === "gainers") {
     displayedStocks = [...displayedStocks].sort((a, b) => (b.price - b.prev) / b.prev - (a.price - a.prev) / a.prev);
   } else if (sortMode === "losers") {
@@ -1098,6 +1117,10 @@ function Boersspil() {
   useEffect(() => {
     if (totalValue >= START_CASH * 2) unlockBadge("doubled");
   }, [totalValue, unlockBadge]);
+  const sellTrades = trades.filter(t => t.type === "sælg" && t.costBasis !== undefined);
+  const profitableSells = sellTrades.filter(t => t.price > t.costBasis).length;
+  const tradeScore = sellTrades.length > 0 ? Math.round(profitableSells / sellTrades.length * 100) : null;
+  const tradeScoreColor = tradeScore === null ? "var(--text-muted)" : tradeScore >= 60 ? "#00D97E" : tradeScore >= 40 ? "#FFB800" : "#FF4757";
   useEffect(() => {
     if (selected) {
       setStopLossInput(stopLoss[selected.id] && !stopLoss[selected.id].triggered ? String(stopLoss[selected.id].price) : "");
@@ -1159,6 +1182,7 @@ function Boersspil() {
       qty,
       price: stock.price,
       total: proceeds,
+      costBasis: h.avgCost,
       time: Date.now()
     };
     const newTrades = [trade, ...trades].slice(0, 20);
@@ -1269,7 +1293,25 @@ function Boersspil() {
     "aria-label": "Skift navn"
   }, /*#__PURE__*/React.createElement(IconPencil, {
     size: 11
-  })))), /*#__PURE__*/React.createElement("div", {
+  })), /*#__PURE__*/React.createElement("button", {
+    style: styles.themeToggleBtn,
+    onClick: () => setTheme(t => t === "dark" ? "light" : "dark"),
+    "aria-label": theme === "dark" ? "Skift til lyst tema" : "Skift til mørkt tema"
+  }, theme === "dark" ? /*#__PURE__*/React.createElement(IconSun, {
+    size: 16
+  }) : /*#__PURE__*/React.createElement(IconMoon, {
+    size: 16
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: styles.scoreBox,
+    title: "Andel af dine salg der var med gevinst"
+  }, /*#__PURE__*/React.createElement("span", {
+    style: styles.scoreLabel
+  }, "Handelsscore"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      ...styles.scoreValue,
+      color: tradeScoreColor
+    }
+  }, tradeScore === null ? "–" : tradeScore))), /*#__PURE__*/React.createElement("div", {
     style: styles.balances
   }, /*#__PURE__*/React.createElement("div", {
     style: styles.balanceBox
@@ -1293,10 +1335,6 @@ function Boersspil() {
       color: pl >= 0 ? "#00D97E" : "#FF4757"
     }
   }, pl >= 0 ? "+" : "", plPct.toFixed(1), "%")), /*#__PURE__*/React.createElement("button", {
-    style: styles.resetBtn,
-    onClick: () => setTheme(t => t === "dark" ? "light" : "dark"),
-    "aria-label": theme === "dark" ? "Skift til lyst tema" : "Skift til mørkt tema"
-  }, theme === "dark" ? /*#__PURE__*/React.createElement(IconSun, null) : /*#__PURE__*/React.createElement(IconMoon, null)), /*#__PURE__*/React.createElement("button", {
     style: styles.resetBtn,
     onClick: requestReset
   }, /*#__PURE__*/React.createElement(IconUndo, null), " ", resetConfirm ? "Sikker? Tryk igen" : "Nulstil spil"))), /*#__PURE__*/React.createElement("button", {
@@ -1347,7 +1385,13 @@ function Boersspil() {
   }, /*#__PURE__*/React.createElement(IconStar, {
     size: 13,
     filled: showOnlyFavorites
-  }), " Kun favoritter"), /*#__PURE__*/React.createElement("select", {
+  }), " Kun favoritter"), /*#__PURE__*/React.createElement("button", {
+    style: {
+      ...styles.filterToggle,
+      ...(showOnlyOwned ? styles.filterToggleActive : {})
+    },
+    onClick: () => setShowOnlyOwned(v => !v)
+  }, "Min portefølje"), /*#__PURE__*/React.createElement("select", {
     style: styles.sortSelect,
     value: sortMode,
     onChange: e => setSortMode(e.target.value)
@@ -1361,7 +1405,7 @@ function Boersspil() {
     value: "name"
   }, "Navn (A-Å)"))), displayedStocks.length === 0 && /*#__PURE__*/React.createElement("div", {
     style: styles.emptyState
-  }, "Ingen favoritmarkerede aktier endnu — tryk på stjernen ved en aktie."), displayedStocks.map(s => {
+  }, showOnlyOwned ? "Du ejer ingen aktier endnu — køb din første aktie herunder." : "Ingen favoritmarkerede aktier endnu — tryk på stjernen ved en aktie."), displayedStocks.map(s => {
     const trend = getTrend(s.price, s.prev);
     const held = holdings[s.id];
     const cat = CATEGORY_COLORS[s.category];
@@ -1727,13 +1771,13 @@ const styles = {
     margin: 0
   },
   disclaimerBox: {
-    background: "#1A1006",
-    border: "1px solid #4A3A1E",
+    background: "var(--warn-bg)",
+    border: "1px solid var(--warn-border)",
     borderRadius: 8,
     padding: "12px 14px",
     fontSize: 12,
     lineHeight: 1.6,
-    color: "#D8B978"
+    color: "var(--warn-text)"
   },
   input: {
     background: "var(--bg-page)",
@@ -1755,9 +1799,9 @@ const styles = {
     cursor: "pointer"
   },
   disclaimerBanner: {
-    background: "#1A1006",
-    borderBottom: "1px solid #4A3A1E",
-    color: "#D8B978",
+    background: "var(--warn-bg)",
+    borderBottom: "1px solid var(--warn-border)",
+    color: "var(--warn-text)",
     fontSize: 11.5,
     textAlign: "center",
     padding: "7px 12px",
@@ -1836,6 +1880,35 @@ const styles = {
     alignItems: "center",
     justifyContent: "center"
   },
+  themeToggleBtn: {
+    background: "var(--bg-panel)",
+    border: "1px solid var(--border)",
+    color: "var(--text-secondary)",
+    borderRadius: 8,
+    width: 32,
+    height: 32,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  scoreBox: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 6
+  },
+  scoreLabel: {
+    fontSize: 10.5,
+    color: "var(--text-muted)",
+    textTransform: "uppercase",
+    letterSpacing: 0.5
+  },
+  scoreValue: {
+    fontFamily: "'IBM Plex Mono', monospace",
+    fontSize: 14,
+    fontWeight: 700
+  },
   balances: {
     display: "flex",
     gap: 10,
@@ -1846,7 +1919,8 @@ const styles = {
     background: "var(--bg-panel)",
     border: "1px solid var(--border)",
     borderRadius: 8,
-    padding: "8px 14px"
+    padding: "8px 14px",
+    minWidth: 92
   },
   balanceLabel: {
     display: "flex",
@@ -1863,6 +1937,7 @@ const styles = {
   resetBtn: {
     display: "flex",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
     background: "transparent",
     border: "1px solid var(--border)",
@@ -1870,7 +1945,8 @@ const styles = {
     borderRadius: 8,
     padding: "8px 12px",
     fontSize: 11.5,
-    cursor: "pointer"
+    cursor: "pointer",
+    minWidth: 132
   },
   learnBanner: {
     display: "flex",
