@@ -937,11 +937,20 @@ function Boersspil() {
           setStocks(prev => prev.map(s => {
             let price = data.stockPrices[s.id] ?? s.price;
             for (let i = 0; i < ticks; i++) price = tickPrice(price, s.vol).price;
+
+            // Byg en fyldt historik så grafen ikke starter helt fladt igen efter genåbning
+            const hist = [];
+            let walkPrice = price;
+            for (let i = 0; i < HISTORY_LEN - 1; i++) {
+              walkPrice = tickSmall(walkPrice, s.vol, 0);
+              hist.push(walkPrice);
+            }
+            hist.push(price);
             return {
               ...s,
-              prev: price,
+              prev: hist[hist.length - 2],
               price,
-              history: [price]
+              history: hist
             };
           }));
         }
