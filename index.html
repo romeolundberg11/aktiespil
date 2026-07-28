@@ -12,7 +12,25 @@
 <meta name="apple-mobile-web-app-title" content="Børsspil" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <style>
-  html, body { margin: 0; padding: 0; background: #0B0E11; }
+  :root {
+    --bg-page: #0B0E11;
+    --bg-panel: #12161B;
+    --border: #22282F;
+    --text-primary: #E4E7EB;
+    --text-secondary: #8A939F;
+    --text-muted: #5A6472;
+    --input-bg: #0B0E11;
+  }
+  .light-theme {
+    --bg-page: #F3F4F6;
+    --bg-panel: #FFFFFF;
+    --border: #E0E3E8;
+    --text-primary: #1A1D21;
+    --text-secondary: #5B6570;
+    --text-muted: #848E99;
+    --input-bg: #F3F4F6;
+  }
+  html, body { margin: 0; padding: 0; background: var(--bg-page); }
   body { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
   * { box-sizing: border-box; }
   #root { min-height: 100vh; }
@@ -155,7 +173,7 @@ function getTrend(price, prev) {
     symbol: "▼"
   };
   return {
-    color: "#8A939F",
+    color: "var(--text-secondary)",
     symbol: "▬"
   };
 }
@@ -452,6 +470,56 @@ function IconLock({
     d: "M7 11V7a5 5 0 0 1 10 0v4"
   }));
 }
+function IconSun({
+  size = 14
+}) {
+  return /*#__PURE__*/React.createElement("svg", {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, /*#__PURE__*/React.createElement("circle", {
+    cx: "12",
+    cy: "12",
+    r: "4"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "M12 2v2"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "M12 20v2"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "m4.93 4.93 1.41 1.41"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "m17.66 17.66 1.41 1.41"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "M2 12h2"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "M20 12h2"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "m6.34 17.66-1.41 1.41"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "m19.07 4.93-1.41 1.41"
+  }));
+}
+function IconMoon({
+  size = 14
+}) {
+  return /*#__PURE__*/React.createElement("svg", {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, /*#__PURE__*/React.createElement("path", {
+    d: "M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"
+  }));
+}
 const LEARN_SECTIONS = [{
   title: "Hvad er en aktie?",
   body: "En aktie er en lille ejerandel i et selskab. Køber du en aktie i Novo Nordisk, ejer du en lillebitte del af virksomheden. Stiger virksomhedens værdi, stiger aktien typisk også — og omvendt hvis det går dårligt."
@@ -489,6 +557,18 @@ const BADGES = [{
   id: "survived_crash",
   title: "Overlevede et stort kursfald",
   desc: "En af dine aktier faldt kraftigt, mens du stadig ejede den"
+}, {
+  id: "ten_trades",
+  title: "10 handler gennemført",
+  desc: "Du har gennemført 10 handler i alt"
+}, {
+  id: "owned_all",
+  title: "Ejet alle 12 aktier på samme tid",
+  desc: "Du ejede samtidig mindst én aktie fra alle 12 selskaber"
+}, {
+  id: "survived_week",
+  title: "Overlevet en hel uge",
+  desc: "Du har spillet i mindst 7 dage siden du startede"
 }];
 const QUIZ_QUESTIONS = [{
   difficulty: 1,
@@ -511,6 +591,21 @@ const QUIZ_QUESTIONS = [{
   options: ["Kursen svinger meget", "Kursen er helt stabil", "Aktien er billig"],
   correct: 0
 }, {
+  difficulty: 1,
+  q: "Hvad kalder man det sted hvor aktier købes og sælges?",
+  options: ["Børsen", "Banken", "Skattevæsenet"],
+  correct: 0
+}, {
+  difficulty: 1,
+  q: "Hvis en aktie 'stiger', betyder det at...",
+  options: ["Kursen bliver højere", "Kursen bliver lavere", "Virksomheden lukker"],
+  correct: 0
+}, {
+  difficulty: 1,
+  q: "Hvad er 'kontant' i dette spil?",
+  options: ["Penge du endnu ikke har investeret", "Aktier du ejer", "Nyheder om markedet"],
+  correct: 0
+}, {
   difficulty: 2,
   q: "Hvorfor sprede sine penge over flere aktier (diversificering)?",
   options: ["For at få garanteret højere afkast", "For at mindske risikoen hvis én aktie klarer sig dårligt", "Det er lovpligtigt"],
@@ -531,6 +626,21 @@ const QUIZ_QUESTIONS = [{
   options: ["At man aldrig kan sælge aktien igen", "At man får besked hvis kursen falder til en grænse man selv sætter", "At man automatisk fordobler sin investering"],
   correct: 1
 }, {
+  difficulty: 2,
+  q: "Hvad viser en akties historik eller graf typisk?",
+  options: ["Hvordan kursen har bevæget sig over tid", "Hvor mange ansatte virksomheden har", "Virksomhedens adresse"],
+  correct: 0
+}, {
+  difficulty: 2,
+  q: "Hvorfor kan det være en fordel at følge nyheder om en aktie du ejer?",
+  options: ["De kan forklare pludselige kursbevægelser", "De bestemmer automatisk kursen", "De er altid irrelevante"],
+  correct: 0
+}, {
+  difficulty: 2,
+  q: "Hvad sker der med din gennemsnitlige købskurs, hvis du køber flere aktier af samme selskab til en anden pris?",
+  options: ["Den genberegnes som et vægtet gennemsnit", "Den forbliver uændret", "Den nulstilles til den nyeste pris"],
+  correct: 0
+}, {
   difficulty: 3,
   q: "Hvad er typisk sandt om vækstaktier sammenlignet med stabile aktier?",
   options: ["De svinger mindre og vokser langsommere", "De kan svinge kraftigt i begge retninger", "De er altid en sikker investering"],
@@ -550,6 +660,16 @@ const QUIZ_QUESTIONS = [{
   q: "Hvis du vil have både stabilitet og mulighed for vækst, hvad giver typisk mest mening?",
   options: ["Kun cykliske aktier", "En blanding af stabile og vækstaktier", "At investere det hele i én enkelt aktie"],
   correct: 1
+}, {
+  difficulty: 3,
+  q: "Hvorfor er det svært konsekvent at 'time markedet' perfekt?",
+  options: ["Fordi kortsigtede kursbevægelser stort set er uforudsigelige", "Fordi kurser aldrig ændrer sig", "Fordi det er forbudt"],
+  correct: 0
+}, {
+  difficulty: 3,
+  q: "Hvad er den største risiko ved kun at eje én enkelt aktie?",
+  options: ["Hele din formue afhænger af ét selskabs skæbne", "Der er ingen risiko ved det", "Det er billigere end at sprede sig"],
+  correct: 0
 }];
 const QUIZ_TOTAL = 5;
 const DIFFICULTY_LABELS = {
@@ -614,6 +734,10 @@ function Boersspil() {
   const [stopLoss, setStopLoss] = useState({});
   const [stopLossInput, setStopLossInput] = useState("");
   const [badges, setBadges] = useState({});
+  const [firstPlayedAt, setFirstPlayedAt] = useState(null);
+  const [theme, setTheme] = useState("dark");
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
+  const [sortMode, setSortMode] = useState("default");
   const [quizStep, setQuizStep] = useState(-1);
   const [quizAnswer, setQuizAnswer] = useState(null);
   const [quizScore, setQuizScore] = useState(0);
@@ -631,7 +755,8 @@ function Boersspil() {
     playerName,
     favorites,
     stopLoss,
-    badges
+    badges,
+    firstPlayedAt
   };
   const showToast = useCallback((message, type = "info") => {
     setToast({
@@ -730,6 +855,7 @@ function Boersspil() {
         setFavorites(data.favorites || {});
         setStopLoss(data.stopLoss || {});
         setBadges(data.badges || {});
+        setFirstPlayedAt(data.firstPlayedAt || Date.now());
         if (data.stockPrices && data.lastTick) {
           const elapsed = Date.now() - data.lastTick;
           const ticks = Math.min(Math.floor(elapsed / TICK_MS), MAX_CATCHUP_TICKS);
@@ -757,6 +883,7 @@ function Boersspil() {
     const favoritesVal = overrides.favorites ?? base.favorites;
     const stopLossVal = overrides.stopLoss ?? base.stopLoss;
     const badgesVal = overrides.badges ?? base.badges;
+    const firstPlayedAtVal = overrides.firstPlayedAt ?? base.firstPlayedAt;
     try {
       const priceMap = {};
       base.stocks.forEach(s => priceMap[s.id] = s.price);
@@ -768,6 +895,7 @@ function Boersspil() {
         favorites: favoritesVal,
         stopLoss: stopLossVal,
         badges: badgesVal,
+        firstPlayedAt: firstPlayedAtVal,
         stockPrices: priceMap,
         lastTick: Date.now()
       }));
@@ -816,6 +944,13 @@ function Boersspil() {
     }
     setQuizStep(QUIZ_TOTAL);
   };
+  const closeLearnModal = () => {
+    if (quizStep >= 0 && quizStep < QUIZ_TOTAL) {
+      setQuizStep(-1);
+      setQuizAnswer(null);
+    }
+    setShowLearn(false);
+  };
   useEffect(() => {
     return () => clearTimeout(resetTimerRef.current);
   }, []);
@@ -831,7 +966,34 @@ function Boersspil() {
   }, [favorites, stopLoss, badges]);
   useEffect(() => {
     if (trades.length >= 1) unlockBadge("first_trade");
+    if (trades.length >= 10) unlockBadge("ten_trades");
   }, [trades.length, unlockBadge]);
+  useEffect(() => {
+    const allOwned = SEED_STOCKS.every(s => (holdings[s.id]?.qty || 0) > 0);
+    if (allOwned) unlockBadge("owned_all");
+  }, [holdings, unlockBadge]);
+  useEffect(() => {
+    if (!firstPlayedAt) return;
+    const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+    const check = () => {
+      if (Date.now() - firstPlayedAt >= WEEK_MS) unlockBadge("survived_week");
+    };
+    check();
+    const t = setInterval(check, 60000);
+    return () => clearInterval(t);
+  }, [firstPlayedAt, unlockBadge]);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("boersspil_theme");
+      if (saved === "light" || saved === "dark") setTheme(saved);
+    } catch (e) {}
+  }, []);
+  useEffect(() => {
+    document.body.classList.toggle("light-theme", theme === "light");
+    try {
+      localStorage.setItem("boersspil_theme", theme);
+    } catch (e) {}
+  }, [theme]);
   const toggleFavorite = id => {
     setFavorites(prev => {
       const next = {
@@ -874,6 +1036,14 @@ function Boersspil() {
   const totalValue = cash + portfolioValue;
   const pl = totalValue - START_CASH;
   const plPct = pl / START_CASH * 100;
+  let displayedStocks = showOnlyFavorites ? stocks.filter(s => favorites[s.id]) : stocks;
+  if (sortMode === "gainers") {
+    displayedStocks = [...displayedStocks].sort((a, b) => (b.price - b.prev) / b.prev - (a.price - a.prev) / a.prev);
+  } else if (sortMode === "losers") {
+    displayedStocks = [...displayedStocks].sort((a, b) => (a.price - a.prev) / a.prev - (b.price - b.prev) / b.prev);
+  } else if (sortMode === "name") {
+    displayedStocks = [...displayedStocks].sort((a, b) => a.name.localeCompare(b.name, "da"));
+  }
   useEffect(() => {
     if (totalValue >= START_CASH * 2) unlockBadge("doubled");
   }, [totalValue, unlockBadge]);
@@ -992,11 +1162,14 @@ function Boersspil() {
       autoFocus: true,
       autoComplete: "off",
       onChange: e => setNameInput(e.target.value),
-      onKeyDown: e => e.key === "Enter" && nameInput.trim() && setPlayerName(nameInput.trim())
+      onKeyDown: e => e.key === "Enter" && nameInput.trim() && (setPlayerName(nameInput.trim()), setFirstPlayedAt(p => p || Date.now()))
     }), /*#__PURE__*/React.createElement("button", {
       style: styles.startBtn,
       disabled: !nameInput.trim(),
-      onClick: () => setPlayerName(nameInput.trim())
+      onClick: () => {
+        setPlayerName(nameInput.trim());
+        setFirstPlayedAt(p => p || Date.now());
+      }
     }, "Start med ", formatKr(START_CASH))));
   }
   return /*#__PURE__*/React.createElement("div", {
@@ -1070,6 +1243,10 @@ function Boersspil() {
     }
   }, pl >= 0 ? "+" : "", plPct.toFixed(1), "%")), /*#__PURE__*/React.createElement("button", {
     style: styles.resetBtn,
+    onClick: () => setTheme(t => t === "dark" ? "light" : "dark"),
+    "aria-label": theme === "dark" ? "Skift til lyst tema" : "Skift til mørkt tema"
+  }, theme === "dark" ? /*#__PURE__*/React.createElement(IconSun, null) : /*#__PURE__*/React.createElement(IconMoon, null)), /*#__PURE__*/React.createElement("button", {
+    style: styles.resetBtn,
     onClick: requestReset
   }, /*#__PURE__*/React.createElement(IconUndo, null), " ", resetConfirm ? "Sikker? Tryk igen" : "Nulstil spil"))), /*#__PURE__*/React.createElement("button", {
     style: styles.learnBanner,
@@ -1094,8 +1271,8 @@ function Boersspil() {
       key: b.id,
       style: {
         ...styles.badgePill,
-        borderColor: unlocked ? "rgba(0,217,126,0.4)" : "#22282F",
-        color: unlocked ? "#00D97E" : "#5A6472"
+        borderColor: unlocked ? "rgba(0,217,126,0.4)" : "var(--border)",
+        color: unlocked ? "#00D97E" : "var(--text-muted)"
       },
       title: b.desc
     }, unlocked ? /*#__PURE__*/React.createElement(IconAward, {
@@ -1108,7 +1285,32 @@ function Boersspil() {
     style: styles.grid
   }, /*#__PURE__*/React.createElement("div", {
     style: styles.stockList
-  }, stocks.map(s => {
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.filterBar
+  }, /*#__PURE__*/React.createElement("button", {
+    style: {
+      ...styles.filterToggle,
+      ...(showOnlyFavorites ? styles.filterToggleActive : {})
+    },
+    onClick: () => setShowOnlyFavorites(v => !v)
+  }, /*#__PURE__*/React.createElement(IconStar, {
+    size: 13,
+    filled: showOnlyFavorites
+  }), " Kun favoritter"), /*#__PURE__*/React.createElement("select", {
+    style: styles.sortSelect,
+    value: sortMode,
+    onChange: e => setSortMode(e.target.value)
+  }, /*#__PURE__*/React.createElement("option", {
+    value: "default"
+  }, "Standard rækkefølge"), /*#__PURE__*/React.createElement("option", {
+    value: "gainers"
+  }, "Størst stigning"), /*#__PURE__*/React.createElement("option", {
+    value: "losers"
+  }, "Størst fald"), /*#__PURE__*/React.createElement("option", {
+    value: "name"
+  }, "Navn (A-Å)"))), displayedStocks.length === 0 && /*#__PURE__*/React.createElement("div", {
+    style: styles.emptyState
+  }, "Ingen favoritmarkerede aktier endnu — tryk på stjernen ved en aktie."), displayedStocks.map(s => {
     const trend = getTrend(s.price, s.prev);
     const held = holdings[s.id];
     const cat = CATEGORY_COLORS[s.category];
@@ -1192,7 +1394,7 @@ function Boersspil() {
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       ...styles.panelTitle,
-      color: "#8A939F"
+      color: "var(--text-secondary)"
     }
   }, /*#__PURE__*/React.createElement(IconHistory, null), " DINE HANDLER"), trades.length === 0 ? /*#__PURE__*/React.createElement("div", {
     style: styles.emptyState
@@ -1329,7 +1531,7 @@ function Boersspil() {
     style: styles.stopLossHint
   }, "Du får besked i appen hvis kursen falder til eller under din grænse, mens du ejer aktien.")))), showLearn && /*#__PURE__*/React.createElement("div", {
     style: styles.modalOverlay,
-    onClick: () => setShowLearn(false)
+    onClick: closeLearnModal
   }, /*#__PURE__*/React.createElement("div", {
     style: styles.learnModal,
     onClick: e => e.stopPropagation()
@@ -1339,7 +1541,7 @@ function Boersspil() {
     style: styles.modalSym
   }, "Lær om aktier"), /*#__PURE__*/React.createElement("button", {
     style: styles.closeBtn,
-    onClick: () => setShowLearn(false),
+    onClick: closeLearnModal,
     "aria-label": "Luk"
   }, /*#__PURE__*/React.createElement(IconX, {
     size: 18
@@ -1351,7 +1553,7 @@ function Boersspil() {
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       ...styles.learnTitle,
-      color: section.color || "#E4E7EB"
+      color: section.color || "var(--text-primary)"
     }
   }, section.title), /*#__PURE__*/React.createElement("div", {
     style: styles.learnBody
@@ -1379,8 +1581,8 @@ function Boersspil() {
   }, activeQuiz[quizStep].q), /*#__PURE__*/React.createElement("div", {
     style: styles.quizOptions
   }, activeQuiz[quizStep].options.map((opt, i) => {
-    let bg = "#0B0E11";
-    let border = "#2B323B";
+    let bg = "var(--bg-page)";
+    let border = "var(--border)";
     if (quizAnswer !== null) {
       if (i === activeQuiz[quizStep].correct) {
         bg = "rgba(0,217,126,0.12)";
@@ -1402,7 +1604,10 @@ function Boersspil() {
   })), quizAnswer !== null && /*#__PURE__*/React.createElement("button", {
     style: styles.quizNextBtn,
     onClick: goToNextQuizQuestion
-  }, quizStep + 1 < QUIZ_TOTAL ? "Næste spørgsmål" : "Se resultat")), quizStep === QUIZ_TOTAL && /*#__PURE__*/React.createElement("div", {
+  }, quizStep + 1 < QUIZ_TOTAL ? "Næste spørgsmål" : "Se resultat"), /*#__PURE__*/React.createElement("button", {
+    style: styles.quizRestartBtn,
+    onClick: startQuiz
+  }, "Start forfra")), quizStep === QUIZ_TOTAL && /*#__PURE__*/React.createElement("div", {
     style: styles.learnScroll
   }, /*#__PURE__*/React.createElement("div", {
     style: styles.quizResultBox
@@ -1430,15 +1635,15 @@ function Boersspil() {
 const styles = {
   page: {
     minHeight: "100vh",
-    background: "#0B0E11",
+    background: "var(--bg-page)",
     fontFamily: "system-ui, sans-serif",
-    color: "#E4E7EB"
+    color: "var(--text-primary)"
   },
   loginCard: {
     maxWidth: 380,
     margin: "80px auto",
-    background: "#12161B",
-    border: "1px solid #22282F",
+    background: "var(--bg-panel)",
+    border: "1px solid var(--border)",
     borderRadius: 12,
     padding: "32px 28px",
     display: "flex",
@@ -1465,7 +1670,7 @@ const styles = {
   },
   loginSub: {
     fontSize: 13,
-    color: "#8A939F",
+    color: "var(--text-secondary)",
     margin: 0
   },
   disclaimerBox: {
@@ -1478,11 +1683,11 @@ const styles = {
     color: "#D8B978"
   },
   input: {
-    background: "#0B0E11",
-    border: "1px solid #2B323B",
+    background: "var(--bg-page)",
+    border: "1px solid var(--border)",
     borderRadius: 8,
     padding: "12px 14px",
-    color: "#E4E7EB",
+    color: "var(--text-primary)",
     fontSize: 15,
     outline: "none"
   },
@@ -1513,8 +1718,8 @@ const styles = {
   },
   tickerWrap: {
     overflow: "hidden",
-    background: "#12161B",
-    borderBottom: "1px solid #22282F",
+    background: "var(--bg-panel)",
+    borderBottom: "1px solid var(--border)",
     padding: "8px 0"
   },
   tickerTrack: {
@@ -1531,7 +1736,7 @@ const styles = {
     fontSize: 12.5
   },
   tickerSym: {
-    color: "#5A6472",
+    color: "var(--text-muted)",
     fontWeight: 700
   },
   container: {
@@ -1550,7 +1755,7 @@ const styles = {
   eyebrow: {
     fontSize: 11,
     letterSpacing: 2,
-    color: "#5A6472"
+    color: "var(--text-muted)"
   },
   playerName: {
     fontSize: 20,
@@ -1567,8 +1772,8 @@ const styles = {
   },
   renameBtn: {
     background: "transparent",
-    border: "1px solid #2B323B",
-    color: "#8A939F",
+    border: "1px solid var(--border)",
+    color: "var(--text-secondary)",
     borderRadius: 6,
     width: 26,
     height: 26,
@@ -1585,8 +1790,8 @@ const styles = {
     flexWrap: "wrap"
   },
   balanceBox: {
-    background: "#12161B",
-    border: "1px solid #22282F",
+    background: "var(--bg-panel)",
+    border: "1px solid var(--border)",
     borderRadius: 8,
     padding: "8px 14px"
   },
@@ -1595,7 +1800,7 @@ const styles = {
     alignItems: "center",
     gap: 4,
     fontSize: 11,
-    color: "#5A6472"
+    color: "var(--text-muted)"
   },
   balanceValue: {
     fontFamily: "'IBM Plex Mono', monospace",
@@ -1607,8 +1812,8 @@ const styles = {
     alignItems: "center",
     gap: 6,
     background: "transparent",
-    border: "1px solid #2B323B",
-    color: "#8A939F",
+    border: "1px solid var(--border)",
+    color: "var(--text-secondary)",
     borderRadius: 8,
     padding: "8px 12px",
     fontSize: 11.5,
@@ -1625,7 +1830,7 @@ const styles = {
     padding: "14px 16px",
     marginBottom: 16,
     cursor: "pointer",
-    color: "#E4E7EB",
+    color: "var(--text-primary)",
     textAlign: "left"
   },
   learnBannerIcon: {
@@ -1685,12 +1890,43 @@ const styles = {
     flexDirection: "column",
     gap: 8
   },
+  filterBar: {
+    display: "flex",
+    gap: 8,
+    marginBottom: 4,
+    flexWrap: "wrap"
+  },
+  filterToggle: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    background: "var(--bg-panel)",
+    border: "1px solid var(--border)",
+    color: "var(--text-secondary)",
+    borderRadius: 8,
+    padding: "7px 12px",
+    fontSize: 12,
+    cursor: "pointer"
+  },
+  filterToggleActive: {
+    color: "#FFB800",
+    borderColor: "rgba(255,184,0,0.4)"
+  },
+  sortSelect: {
+    background: "var(--bg-panel)",
+    border: "1px solid var(--border)",
+    color: "var(--text-secondary)",
+    borderRadius: 8,
+    padding: "7px 10px",
+    fontSize: 12,
+    cursor: "pointer"
+  },
   stockRow: {
     display: "flex",
     alignItems: "center",
     gap: 12,
-    background: "#12161B",
-    border: "1px solid #22282F",
+    background: "var(--bg-panel)",
+    border: "1px solid var(--border)",
     borderRadius: 10,
     padding: "12px 14px",
     cursor: "pointer"
@@ -1716,7 +1952,7 @@ const styles = {
   },
   stockName: {
     fontSize: 12,
-    color: "#8A939F"
+    color: "var(--text-secondary)"
   },
   heldBadge: {
     display: "inline-block",
@@ -1754,8 +1990,8 @@ const styles = {
     gap: 12
   },
   sidebar: {
-    background: "#12161B",
-    border: "1px solid #22282F",
+    background: "var(--bg-panel)",
+    border: "1px solid var(--border)",
     borderRadius: 10,
     padding: 14,
     height: "fit-content"
@@ -1772,7 +2008,7 @@ const styles = {
   },
   emptyState: {
     fontSize: 12,
-    color: "#5A6472"
+    color: "var(--text-muted)"
   },
   newsList: {
     display: "flex",
@@ -1788,13 +2024,13 @@ const styles = {
   },
   newsTime: {
     fontSize: 10.5,
-    color: "#5A6472",
+    color: "var(--text-muted)",
     marginTop: 3
   },
   tradesPanel: {
     marginTop: 16,
-    background: "#12161B",
-    border: "1px solid #22282F",
+    background: "var(--bg-panel)",
+    border: "1px solid var(--border)",
     borderRadius: 10,
     padding: 14
   },
@@ -1828,7 +2064,7 @@ const styles = {
   },
   tradeTime: {
     fontSize: 11,
-    color: "#5A6472",
+    color: "var(--text-muted)",
     minWidth: 42,
     textAlign: "right"
   },
@@ -1843,8 +2079,8 @@ const styles = {
     zIndex: 10
   },
   modal: {
-    background: "#12161B",
-    border: "1px solid #22282F",
+    background: "var(--bg-panel)",
+    border: "1px solid var(--border)",
     borderRadius: 14,
     padding: 22,
     width: "100%",
@@ -1854,8 +2090,8 @@ const styles = {
     gap: 12
   },
   learnModal: {
-    background: "#12161B",
-    border: "1px solid #22282F",
+    background: "var(--bg-panel)",
+    border: "1px solid var(--border)",
     borderRadius: 14,
     padding: 22,
     width: "100%",
@@ -1888,7 +2124,7 @@ const styles = {
   },
   learnFooter: {
     fontSize: 11.5,
-    color: "#5A6472",
+    color: "var(--text-muted)",
     lineHeight: 1.5,
     paddingTop: 2
   },
@@ -1904,12 +2140,12 @@ const styles = {
   },
   modalName: {
     fontSize: 13,
-    color: "#8A939F"
+    color: "var(--text-secondary)"
   },
   closeBtn: {
     background: "transparent",
     border: "none",
-    color: "#8A939F",
+    color: "var(--text-secondary)",
     cursor: "pointer",
     display: "flex",
     alignItems: "center"
@@ -1922,8 +2158,8 @@ const styles = {
   },
   holdingInfo: {
     fontSize: 12,
-    color: "#8A939F",
-    background: "#0B0E11",
+    color: "var(--text-secondary)",
+    background: "var(--bg-page)",
     padding: "8px 10px",
     borderRadius: 6
   },
@@ -1936,8 +2172,8 @@ const styles = {
     width: 34,
     height: 34,
     borderRadius: 8,
-    background: "#22282F",
-    color: "#E4E7EB",
+    background: "var(--border)",
+    color: "var(--text-primary)",
     border: "none",
     fontSize: 18,
     cursor: "pointer"
@@ -1945,17 +2181,17 @@ const styles = {
   qtyInput: {
     flex: 1,
     textAlign: "center",
-    background: "#0B0E11",
-    border: "1px solid #2B323B",
+    background: "var(--bg-page)",
+    border: "1px solid var(--border)",
     borderRadius: 8,
     padding: "8px",
-    color: "#E4E7EB",
+    color: "var(--text-primary)",
     fontSize: 15,
     outline: "none"
   },
   costPreview: {
     fontSize: 13,
-    color: "#8A939F",
+    color: "var(--text-secondary)",
     textAlign: "center"
   },
   maxRow: {
@@ -1964,10 +2200,10 @@ const styles = {
   },
   maxBtn: {
     flex: 1,
-    background: "#0B0E11",
-    border: "1px solid #2B323B",
+    background: "var(--bg-page)",
+    border: "1px solid var(--border)",
     borderRadius: 8,
-    color: "#8A939F",
+    color: "var(--text-secondary)",
     fontSize: 11.5,
     padding: "8px 6px",
     cursor: "pointer",
@@ -1992,7 +2228,7 @@ const styles = {
     bottom: 20,
     left: "50%",
     transform: "translateX(-50%)",
-    background: "#12161B",
+    background: "var(--bg-panel)",
     border: "1px solid",
     borderRadius: 10,
     padding: "10px 16px",
@@ -2005,8 +2241,8 @@ const styles = {
     maxWidth: "90vw"
   },
   stopLossBox: {
-    background: "#0B0E11",
-    border: "1px solid #2B323B",
+    background: "var(--bg-page)",
+    border: "1px solid var(--border)",
     borderRadius: 8,
     padding: "10px 12px",
     display: "flex",
@@ -2016,7 +2252,7 @@ const styles = {
   stopLossLabel: {
     fontSize: 11.5,
     fontWeight: 700,
-    color: "#8A939F",
+    color: "var(--text-secondary)",
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
@@ -2026,11 +2262,11 @@ const styles = {
   },
   stopLossInput: {
     flex: 1,
-    background: "#12161B",
-    border: "1px solid #2B323B",
+    background: "var(--bg-panel)",
+    border: "1px solid var(--border)",
     borderRadius: 6,
     padding: "8px 10px",
-    color: "#E4E7EB",
+    color: "var(--text-primary)",
     fontSize: 13,
     outline: "none"
   },
@@ -2049,12 +2285,12 @@ const styles = {
     justifyContent: "space-between",
     alignItems: "center",
     fontSize: 13,
-    color: "#E4E7EB"
+    color: "var(--text-primary)"
   },
   stopLossRemoveBtn: {
     background: "transparent",
-    border: "1px solid #2B323B",
-    color: "#8A939F",
+    border: "1px solid var(--border)",
+    color: "var(--text-secondary)",
     borderRadius: 6,
     padding: "5px 10px",
     fontSize: 11.5,
@@ -2062,7 +2298,7 @@ const styles = {
   },
   stopLossHint: {
     fontSize: 11,
-    color: "#5A6472",
+    color: "var(--text-muted)",
     lineHeight: 1.5
   },
   quizStartBtn: {
@@ -2081,8 +2317,8 @@ const styles = {
   },
   quizBackBtn: {
     background: "transparent",
-    border: "1px solid #2B323B",
-    color: "#8A939F",
+    border: "1px solid var(--border)",
+    color: "var(--text-secondary)",
     borderRadius: 8,
     padding: "10px",
     fontSize: 13,
@@ -2090,7 +2326,7 @@ const styles = {
   },
   quizProgress: {
     fontSize: 11.5,
-    color: "#5A6472",
+    color: "var(--text-muted)",
     fontWeight: 600
   },
   quizProgressRow: {
@@ -2121,7 +2357,7 @@ const styles = {
     borderRadius: 8,
     padding: "11px 14px",
     fontSize: 13.5,
-    color: "#E4E7EB",
+    color: "var(--text-primary)",
     cursor: "pointer"
   },
   quizNextBtn: {
@@ -2132,6 +2368,15 @@ const styles = {
     padding: "12px",
     fontWeight: 700,
     fontSize: 14,
+    cursor: "pointer"
+  },
+  quizRestartBtn: {
+    background: "transparent",
+    border: "1px solid var(--border)",
+    color: "var(--text-muted)",
+    borderRadius: 8,
+    padding: "9px",
+    fontSize: 12.5,
     cursor: "pointer"
   },
   quizResultBox: {
@@ -2145,7 +2390,7 @@ const styles = {
   },
   quizResultLabel: {
     fontSize: 13,
-    color: "#8A939F",
+    color: "var(--text-secondary)",
     marginTop: 4
   }
 };
