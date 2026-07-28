@@ -162,21 +162,28 @@ const CATEGORY_COLORS = {
   }
 };
 
-// Størrelsen af et "stort kurshop" - de fleste gange små/moderate, sjældent virkelig store
-function pickMoveMagnitude() {
+// Størrelsen af et "stort kurshop" - retningsafhængig: stigninger er mindst 5%, fald mindst 3,5%.
+// Stadig størst chance for det laveste interval, derefter aftagende chance for større spring.
+function pickMoveMagnitude(up) {
+  const floor = up ? 0.05 : 0.035;
   const r = Math.random();
-  if (r < 0.33) return 0.03 + Math.random() * 0.02; // ~3-5%, mest almindeligt
-  if (r < 0.62) return 0.06 + Math.random() * 0.03; // ~6-9%
+  if (r < 0.62) return floor + Math.random() * (0.09 - floor); // laveste interval, mest almindeligt
   if (r < 0.80) return 0.10 + Math.random() * 0.05; // ~10-15%
   if (r < 0.94) return 0.18 + Math.random() * 0.10; // ~18-28%
-  return 0.30 + Math.random() * 0.15; // ~30-45%, sjældent men lidt hyppigere end før
+  return 0.30 + Math.random() * 0.15; // ~30-45%, sjældent
 }
 
 // Bruges kun til at "indhente" kurser når man har været væk (ingen rygte-mekanik nødvendig der)
 function tickPrice(price, vol) {
   const bigMove = Math.random() < 0.06;
-  const magnitude = bigMove ? pickMoveMagnitude() : vol;
-  const drift = bigMove ? Math.random() < 0.5 ? -magnitude : magnitude : (Math.random() - 0.48) * magnitude;
+  let drift;
+  if (bigMove) {
+    const up = Math.random() < 0.5;
+    const magnitude = pickMoveMagnitude(up);
+    drift = up ? magnitude : -magnitude;
+  } else {
+    drift = (Math.random() - 0.48) * vol;
+  }
   const next = Math.max(0.5, price * (1 + drift));
   return {
     price: Math.round(next * 100) / 100,
@@ -838,7 +845,7 @@ function Boersspil() {
             next = tickSmall(s.price, s.vol, trend);
             if (Math.random() < 0.05) {
               const up = Math.random() < 0.5;
-              const magnitude = pickMoveMagnitude();
+              const magnitude = pickMoveMagnitude(up);
               pending[s.id] = {
                 ticksLeft: 1 + Math.floor(Math.random() * 2),
                 magnitude,
@@ -1117,10 +1124,6 @@ function Boersspil() {
   useEffect(() => {
     if (totalValue >= START_CASH * 2) unlockBadge("doubled");
   }, [totalValue, unlockBadge]);
-  const sellTrades = trades.filter(t => t.type === "sælg" && t.costBasis !== undefined);
-  const profitableSells = sellTrades.filter(t => t.price > t.costBasis).length;
-  const tradeScore = sellTrades.length > 0 ? Math.round(profitableSells / sellTrades.length * 100) : null;
-  const tradeScoreColor = tradeScore === null ? "var(--text-muted)" : tradeScore >= 60 ? "#00D97E" : tradeScore >= 40 ? "#FFB800" : "#FF4757";
   useEffect(() => {
     if (selected) {
       setStopLossInput(stopLoss[selected.id] && !stopLoss[selected.id].triggered ? String(stopLoss[selected.id].price) : "");
@@ -1182,7 +1185,6 @@ function Boersspil() {
       qty,
       price: stock.price,
       total: proceeds,
-      costBasis: h.avgCost,
       time: Date.now()
     };
     const newTrades = [trade, ...trades].slice(0, 20);
@@ -1301,17 +1303,7 @@ function Boersspil() {
     size: 16
   }) : /*#__PURE__*/React.createElement(IconMoon, {
     size: 16
-  }))), /*#__PURE__*/React.createElement("div", {
-    style: styles.scoreBox,
-    title: "Andel af dine salg der var med gevinst"
-  }, /*#__PURE__*/React.createElement("span", {
-    style: styles.scoreLabel
-  }, "Handelsscore"), /*#__PURE__*/React.createElement("span", {
-    style: {
-      ...styles.scoreValue,
-      color: tradeScoreColor
-    }
-  }, tradeScore === null ? "–" : tradeScore))), /*#__PURE__*/React.createElement("div", {
+  })))), /*#__PURE__*/React.createElement("div", {
     style: styles.balances
   }, /*#__PURE__*/React.createElement("div", {
     style: styles.balanceBox
@@ -1891,23 +1883,6 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center"
-  },
-  scoreBox: {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 6
-  },
-  scoreLabel: {
-    fontSize: 10.5,
-    color: "var(--text-muted)",
-    textTransform: "uppercase",
-    letterSpacing: 0.5
-  },
-  scoreValue: {
-    fontFamily: "'IBM Plex Mono', monospace",
-    fontSize: 14,
-    fontWeight: 700
   },
   balances: {
     display: "flex",
