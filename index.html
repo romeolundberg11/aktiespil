@@ -67,6 +67,8 @@ const START_CASH = 100000;
 const TAX_THRESHOLD = 79400; // 2026-grænse for lav aktieskat-sats (enlig)
 const TAX_LOW = 0.27;
 const TAX_HIGH = 0.42;
+const DIVIDEND_RATE = 0.004; // udbytte pr. udbetaling for "Stabil"-aktier (forenklet spilmekanik)
+const DIVIDEND_INTERVAL_MS = 90000; // udbetales ca. hvert 90. sekund
 const FEE_RATE = 0.0015; // 0,15% kurtage
 const FEE_MIN = 39; // minimumsgebyr i kr, ligesom hos Nordnet/Saxo
 const SPREAD = 0.003; // 0,3% samlet bid-ask spread
@@ -183,6 +185,68 @@ const NEWS_UP = ["overrasker markedet med stærkere regnskab end ventet", "får 
 const NEWS_DOWN = ["skuffer med regnskab under forventning", "nedjusteres af flere analytikere", "taber en stor kunde", "advarer om lavere indtjening end ventet", "rammes af stigende omkostninger"];
 const RUMOR_UP = ["er i rygternes centrum for et stærkt regnskab — kursen kan stige snart", "nævnes af analytikere som kandidat til en snarlig opgradering", "menes ifølge rygter at have landet en ny storkontrakt"];
 const RUMOR_DOWN = ["er genstand for stigende bekymring blandt investorer — kursen kan falde snart", "rygtes at stå overfor en nedjustering fra analytikere", "kæmper ifølge rygter med stigende omkostninger"];
+
+// Fiktive, selskabsspecifikke overskrifter - opdigtet til dette spil, afspejler ikke virkelige begivenheder
+const STOCK_NEWS = {
+  "NOVO-B": {
+    up: ["løfter forventningerne efter positive studieresultater for et nyt lægemiddel", "får myndighedsgodkendelse i et nyt marked", "overrasker med stærkere salg af sin diabetesbehandling end ventet"],
+    down: ["rammes af forsinkelser i et klinisk studie", "møder øget konkurrence fra andre medicinalselskaber", "skuffer med svagere salgstal for et nøgleprodukt"]
+  },
+  "MAERSK-B": {
+    up: ["nyder godt af stigende fragtrater på verdenshavene", "lander en stor ny fragtaftale med en global kunde", "drager fordel af faldende brændstofpriser"],
+    down: ["rammes af faldende fragtrater globalt", "påvirkes af forstyrrelser i vigtige skibsruter", "advarer om overkapacitet i branchen"]
+  },
+  ORSTED: {
+    up: ["får grønt lys til et nyt stort havvindmølleprojekt", "nyder godt af stigende energipriser", "tiltrækker ny international investorinteresse"],
+    down: ["rammes af forsinkelser i et vindmølleprojekt", "påvirkes af faldende energipriser", "møder modstand mod et planlagt anlæg"]
+  },
+  VWS: {
+    up: ["modtager en stor ordre på vindmøller fra et nyt marked", "nyder godt af øget global efterspørgsel på grøn energi", "præsenterer et gennembrud indenfor turbineteknologi"],
+    down: ["rammes af stigende råvarepriser i produktionen", "taber en stor ordre til en konkurrent", "advarer om leveranceproblemer"]
+  },
+  "CARL-B": {
+    up: ["oplever stigende salg efter en vellykket sommerkampagne", "udvider til et nyt internationalt marked", "nyder godt af faldende råvarepriser"],
+    down: ["rammes af faldende ølsalg i et nøglemarked", "påvirkes af stigende emballagepriser", "møder skarpere konkurrence fra lokale bryggerier"]
+  },
+  DSV: {
+    up: ["nyder godt af stigende global fragtefterspørgsel", "lander en stor logistikaftale med en international kæde", "drager fordel af faldende transportomkostninger"],
+    down: ["rammes af faldende fragtvolumener", "påvirkes af stigende brændstofpriser", "advarer om svagere efterspørgsel i Europa"]
+  },
+  "NZYM-B": {
+    up: ["præsenterer et gennembrud indenfor bæredygtige enzymer", "lander en stor ny industriaftale", "nyder godt af stigende efterspørgsel på grønne løsninger"],
+    down: ["rammes af faldende efterspørgsel fra landbrugssektoren", "møder øget konkurrence fra nye aktører", "skuffer med svagere kvartalstal"]
+  },
+  GMAB: {
+    up: ["får positive resultater fra et klinisk studie af en ny kræftbehandling", "indgår en stor partnerskabsaftale med et internationalt medicinalselskab", "får myndighedsgodkendelse til en ny behandling"],
+    down: ["rammes af skuffende resultater i et klinisk studie", "oplever forsinkelser i godkendelsesprocessen", "taber en vigtig patentsag"]
+  },
+  "COLO-B": {
+    up: ["udvider produktionen efter stigende global efterspørgsel", "lancerer et nyt produkt der tages godt imod af markedet", "nyder godt af favorable valutakurser"],
+    down: ["rammes af stigende produktionsomkostninger", "møder tilbagekaldelse af et produkt", "påvirkes af ugunstige valutakurser"]
+  },
+  DANSKE: {
+    up: ["nyder godt af stigende renter", "præsenterer stærkere kvartalstal end ventet", "tiltrækker flere kunder efter ny digital satsning"],
+    down: ["rammes af øgede hensættelser til tab på udlån", "møder ny regulatorisk undersøgelse", "advarer om svagere indtjening i næste kvartal"]
+  },
+  PNDORA: {
+    up: ["oplever stærkt julesalg i nøglemarkeder", "udvider med nye butikker i Asien", "lancerer en kollektion der bliver en overraskende succes"],
+    down: ["rammes af faldende smykkesalg i Europa", "påvirkes af stigende sølvpriser", "advarer om svagere forbrugertillid"]
+  },
+  "AMBU-B": {
+    up: ["får et gennembrud med et nyt engangs-endoskop", "udvider til et nyt hospitalsmarked", "nyder godt af øget fokus på hygiejne i sundhedssektoren"],
+    down: ["rammes af forsinket produktlancering", "møder skarpere konkurrence fra andre medico-selskaber", "advarer om lavere hospitalsindkøb"]
+  },
+  BTC: {
+    up: ["stiger efter øget interesse fra institutionelle investorer", "får medvind efter positive udmeldinger om regulering", "nyder godt af stigende global efterspørgsel efter digitale aktiver"],
+    down: ["falder efter skærpede reguleringsudmeldinger", "rammes af bekymring om øget myndighedskontrol", "presses af en stor investors salg"]
+  },
+  ETH: {
+    up: ["stiger efter en vellykket teknisk opdatering af netværket", "nyder godt af stigende brug indenfor digitale kontrakter", "får medvind fra øget udvikleraktivitet"],
+    down: ["falder efter tekniske problemer med netværket", "rammes af bekymring om konkurrerende teknologier", "presses af faldende interesse fra investorer"]
+  }
+};
+const MACRO_NEWS_UP = ["Renten sættes ned, og hele markedet stiger", "Optimisme skyller ind over aktiemarkedet efter positive nøgletal", "Gode globale vækstforventninger løfter aktiemarkedet bredt"];
+const MACRO_NEWS_DOWN = ["Renteforhøjelse rammer hele markedet", "Uro på de globale markeder presser aktier bredt ned", "Svage nøgletal skaber usikkerhed på tværs af markedet"];
 const CATEGORY_COLORS = {
   Stabil: {
     bg: "rgba(74,144,217,0.15)",
@@ -645,6 +709,12 @@ const LEARN_SECTIONS = [{
 }, {
   title: "Kurtage og spread",
   body: "Hver handel koster i virkeligheden penge — et gebyr (kurtage) på typisk 0,1-0,2% af beløbet, eller et minimumsgebyr. Der er også altid en lille forskel mellem købs- og salgskurs (spread), selv uden at kursen ændrer sig. Begge dele er nu med i spillet, og æder en lille bid hver gang du handler — især ved mange, små handler."
+}, {
+  title: "Udbytte",
+  body: "Nogle selskaber udbetaler løbende en del af overskuddet direkte til aktionærerne — det kaldes udbytte (eller dividende). I spillet udbetaler 'Stabil'-aktier et lille, jævnligt udbytte til dig hvis du ejer dem, beskattet på samme måde som en kursgevinst. Det gør 'kedelige' stabile aktier mere attraktive at holde på langt sigt."
+}, {
+  title: "Om nyhederne i spillet",
+  body: "Nyhederne du ser i spillet — inklusiv dem der nævner navngivne selskaber — er 100% fiktive og genereret tilfældigt til dette spil. De afspejler ikke virkelige begivenheder, regnskaber eller udtalelser fra de rigtige virksomheder bag navnene."
 }];
 const BADGES = [{
   id: "first_trade",
@@ -889,12 +959,21 @@ function Boersspil() {
 
   // Kurssimulering: rygter dukker op 1-2 opdateringer FØR et stort kurshop rammer,
   // så en opmærksom spiller kan nå at reagere. Almindelige bevægelser har et strejf af momentum.
+  // Der er også en lille chance for en markedsbred (makro) begivenhed der rammer alle aktiver på én gang.
   useEffect(() => {
     tickRef.current = setInterval(() => {
       setStocks(prev => {
         const newsItems = [];
         const triggeredStopLossIds = [];
         const pending = pendingMovesRef.current;
+        let macroEvent = null;
+        if (Math.random() < 0.03) {
+          const up = Math.random() < 0.5;
+          macroEvent = {
+            up,
+            magnitude: 0.02 + Math.random() * 0.04
+          };
+        }
         const updated = prev.map(s => {
           const trend = s.price > s.prev ? 1 : s.price < s.prev ? -1 : 0;
           const scheduled = pending[s.id];
@@ -936,8 +1015,13 @@ function Boersspil() {
               }
             }
           }
+          if (macroEvent) {
+            const macroDrift = macroEvent.up ? macroEvent.magnitude : -macroEvent.magnitude;
+            next = Math.round(Math.max(0.5, next * (1 + macroDrift)) * 100) / 100;
+          }
           if (bigMoveNow) {
-            const pool = upNow ? NEWS_UP : NEWS_DOWN;
+            const companyPool = STOCK_NEWS[s.id];
+            const pool = upNow ? companyPool?.up || NEWS_UP : companyPool?.down || NEWS_DOWN;
             newsItems.push({
               id: `${s.id}-${Date.now()}-${Math.random()}`,
               stockName: s.name,
@@ -967,6 +1051,17 @@ function Boersspil() {
             history: hist
           };
         });
+        if (macroEvent) {
+          const pool = macroEvent.up ? MACRO_NEWS_UP : MACRO_NEWS_DOWN;
+          newsItems.push({
+            id: `macro-${Date.now()}-${Math.random()}`,
+            stockName: "Markedet",
+            headline: pool[Math.floor(Math.random() * pool.length)],
+            up: macroEvent.up,
+            macro: true,
+            time: Date.now()
+          });
+        }
         if (newsItems.length) setNews(n => [...newsItems, ...n].slice(0, 200));
         if (triggeredStopLossIds.length) {
           setStopLoss(prevSL => {
@@ -1169,6 +1264,58 @@ function Boersspil() {
     const t = setInterval(record, 60000);
     return () => clearInterval(t);
   }, [loadedStorage, playerName]);
+
+  // Udbytte: "Stabil"-aktier udbetaler jævnligt et lille udbytte til dem der ejer dem,
+  // beskattet på samme måde som kursgevinst (aktieindkomst).
+  useEffect(() => {
+    if (!loadedStorage || !playerName) return;
+    const payDividends = () => {
+      const base = stateRef.current;
+      let grossTotal = 0;
+      const paidStocks = [];
+      base.stocks.forEach(s => {
+        if (s.category !== "Stabil") return;
+        const held = base.holdings[s.id];
+        if (!held || held.qty <= 0) return;
+        const gross = Math.round(held.qty * s.price * DIVIDEND_RATE);
+        if (gross <= 0) return;
+        grossTotal += gross;
+        paidStocks.push(s.name);
+      });
+      if (grossTotal <= 0) return;
+      const oldBase = base.yearNetGain;
+      const newBase = oldBase + grossTotal;
+      const taxableAt27 = Math.max(0, Math.min(newBase, TAX_THRESHOLD) - Math.min(oldBase, TAX_THRESHOLD));
+      const taxableAt42 = grossTotal - taxableAt27;
+      const tax = Math.round(taxableAt27 * TAX_LOW + taxableAt42 * TAX_HIGH);
+      const netDividend = grossTotal - tax;
+      const newCash = base.cash + netDividend;
+      const trade = {
+        id: `div-${Date.now()}-${Math.random()}`,
+        type: "udbytte",
+        stockId: null,
+        stockName: paidStocks.join(", "),
+        qty: null,
+        price: null,
+        total: netDividend,
+        grossTotal,
+        tax,
+        time: Date.now()
+      };
+      const newTrades = [trade, ...base.trades].slice(0, 20);
+      setCash(newCash);
+      setYearNetGain(newBase);
+      setTrades(newTrades);
+      showToast(`Udbytte modtaget: ${formatKr(grossTotal)} — skat ${formatKr(tax)} → ${formatKr(netDividend)} netto`, "buy");
+      saveNow({
+        cash: newCash,
+        trades: newTrades,
+        yearNetGain: newBase
+      });
+    };
+    const t = setInterval(payDividends, DIVIDEND_INTERVAL_MS);
+    return () => clearInterval(t);
+  }, [loadedStorage, playerName, saveNow, showToast]);
   useEffect(() => {
     if (!firstPlayedAt) return;
     const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -1631,6 +1778,8 @@ function Boersspil() {
       color: "#7FB3E8"
     }
   }, /*#__PURE__*/React.createElement(IconNewspaper, null), " NYHEDER"), /*#__PURE__*/React.createElement("div", {
+    style: styles.fictionNote
+  }, "Nyhederne herunder er fiktive og genereret tilfældigt til spillet — afspejler ikke virkelige begivenheder."), /*#__PURE__*/React.createElement("div", {
     style: styles.newsList
   }, news.length === 0 && /*#__PURE__*/React.createElement("div", {
     style: styles.emptyState
@@ -1639,7 +1788,9 @@ function Boersspil() {
     style: styles.newsItem
   }, n.rumor && /*#__PURE__*/React.createElement("span", {
     style: styles.rumorTag
-  }, "RYGTE"), /*#__PURE__*/React.createElement("span", {
+  }, "RYGTE"), n.macro && /*#__PURE__*/React.createElement("span", {
+    style: styles.macroTag
+  }, "MARKED"), /*#__PURE__*/React.createElement("span", {
     style: {
       color: n.up ? "#00D97E" : "#FF4757",
       fontWeight: 700
@@ -1668,12 +1819,12 @@ function Boersspil() {
   }, /*#__PURE__*/React.createElement("span", {
     style: {
       ...styles.tradeType,
-      color: t.type === "køb" ? "#00D97E" : "#FF4757",
-      background: t.type === "køb" ? "rgba(0,217,126,0.12)" : "rgba(255,71,87,0.12)"
+      color: t.type === "køb" ? "#00D97E" : t.type === "udbytte" ? "#FFB800" : "#FF4757",
+      background: t.type === "køb" ? "rgba(0,217,126,0.12)" : t.type === "udbytte" ? "rgba(255,184,0,0.12)" : "rgba(255,71,87,0.12)"
     }
   }, t.type), /*#__PURE__*/React.createElement("span", {
     style: styles.tradeStock
-  }, t.qty, " stk ", t.stockName, t.fee > 0 && /*#__PURE__*/React.createElement("span", {
+  }, t.type === "udbytte" ? `Fra ${t.stockName}` : `${t.qty} stk ${t.stockName}`, t.fee > 0 && /*#__PURE__*/React.createElement("span", {
     style: styles.tradeTaxNote
   }, " · kurtage ", formatKr(t.fee)), t.tax > 0 && /*#__PURE__*/React.createElement("span", {
     style: styles.tradeTaxNote
@@ -1921,14 +2072,18 @@ function Boersspil() {
     size: 18
   }))), /*#__PURE__*/React.createElement("div", {
     style: styles.learnScroll
-  }, news.length === 0 && /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.fictionNote
+  }, "Alle nyheder er fiktive og genereret tilfældigt til spillet — afspejler ikke virkelige begivenheder eller udtalelser fra de nævnte virksomheder."), news.length === 0 && /*#__PURE__*/React.createElement("div", {
     style: styles.emptyState
   }, "Ingen nyheder endnu."), news.map(n => /*#__PURE__*/React.createElement("div", {
     key: n.id,
     style: styles.newsItem
   }, n.rumor && /*#__PURE__*/React.createElement("span", {
     style: styles.rumorTag
-  }, "RYGTE"), /*#__PURE__*/React.createElement("span", {
+  }, "RYGTE"), n.macro && /*#__PURE__*/React.createElement("span", {
+    style: styles.macroTag
+  }, "MARKED"), /*#__PURE__*/React.createElement("span", {
     style: {
       color: n.up ? "#00D97E" : "#FF4757",
       fontWeight: 700
@@ -2361,6 +2516,24 @@ const styles = {
     borderRadius: 6,
     marginRight: 6,
     letterSpacing: 0.5
+  },
+  macroTag: {
+    display: "inline-block",
+    background: "rgba(111,168,232,0.15)",
+    color: "#6FA8E8",
+    fontSize: 9.5,
+    fontWeight: 700,
+    padding: "1px 6px",
+    borderRadius: 6,
+    marginRight: 6,
+    letterSpacing: 0.5
+  },
+  fictionNote: {
+    fontSize: 10.5,
+    color: "var(--text-muted)",
+    lineHeight: 1.5,
+    marginBottom: 10,
+    fontStyle: "italic"
   },
   showAllNewsBtn: {
     width: "100%",
