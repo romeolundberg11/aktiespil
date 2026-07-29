@@ -167,10 +167,10 @@ const CATEGORY_COLORS = {
 function pickMoveMagnitude(up) {
   const floor = up ? 0.05 : 0.035;
   const r = Math.random();
-  if (r < 0.62) return floor + Math.random() * (0.09 - floor); // laveste interval, mest almindeligt
-  if (r < 0.80) return 0.10 + Math.random() * 0.05; // ~10-15%
-  if (r < 0.94) return 0.18 + Math.random() * 0.10; // ~18-28%
-  return 0.30 + Math.random() * 0.15; // ~30-45%, sjældent
+  if (r < 0.75) return floor + Math.random() * (0.09 - floor); // laveste interval, klart mest almindeligt
+  if (r < 0.90) return 0.10 + Math.random() * 0.05; // ~10-15%
+  if (r < 0.98) return 0.18 + Math.random() * 0.10; // ~18-28%, sjældent
+  return 0.30 + Math.random() * 0.15; // ~30-45%, meget sjældent
 }
 
 // Bruges kun til at "indhente" kurser når man har været væk (ingen rygte-mekanik nødvendig der)
