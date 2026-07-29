@@ -64,6 +64,30 @@ const {
   useCallback
 } = React;
 const START_CASH = 100000;
+const TAX_THRESHOLD = 79400; // 2026-grænse for lav aktieskat-sats (enlig)
+const TAX_LOW = 0.27;
+const TAX_HIGH = 0.42;
+const FEE_RATE = 0.0015; // 0,15% kurtage
+const FEE_MIN = 39; // minimumsgebyr i kr, ligesom hos Nordnet/Saxo
+const SPREAD = 0.003; // 0,3% samlet bid-ask spread
+
+function calcFee(amount) {
+  return Math.round(Math.max(amount * FEE_RATE, FEE_MIN));
+}
+function getBuyPrice(price) {
+  return price * (1 + SPREAD / 2);
+}
+function getSellPrice(price) {
+  return price * (1 - SPREAD / 2);
+}
+function calcMaxBuyQty(execPrice, cash) {
+  if (execPrice <= 0) return 0;
+  const flatQty = Math.floor((cash - FEE_MIN) / execPrice);
+  if (flatQty * execPrice <= FEE_MIN / FEE_RATE) {
+    return Math.max(0, flatQty);
+  }
+  return Math.max(0, Math.floor(cash / (execPrice * (1 + FEE_RATE))));
+}
 const TICK_MS = 7500;
 const HISTORY_LEN = 40;
 const MAX_CATCHUP_TICKS = 200;
@@ -615,6 +639,12 @@ const LEARN_SECTIONS = [{
 }, {
   title: "Langsigtet vs. kortsigtet",
   body: "Historisk set har aktiemarkedet som helhed givet et positivt afkast over mange år, selvom det svinger meget fra dag til dag. Kortsigtet spekulation (at gætte på op- og nedture) er markant sværere og mere risikabelt end en langsigtet strategi."
+}, {
+  title: "Skat på gevinst",
+  body: "I Danmark betaler man aktieskat når man sælger med fortjeneste — 27% af de første ca. 79.400 kr. i årlig gevinst, og 42% af resten. Denne app trækker automatisk den samme skat fra når du sælger med gevinst, så du får en fornemmelse af hvor meget skat reelt påvirker det du sidder tilbage med."
+}, {
+  title: "Kurtage og spread",
+  body: "Hver handel koster i virkeligheden penge — et gebyr (kurtage) på typisk 0,1-0,2% af beløbet, eller et minimumsgebyr. Der er også altid en lille forskel mellem købs- og salgskurs (spread), selv uden at kursen ændrer sig. Begge dele er nu med i spillet, og æder en lille bid hver gang du handler — især ved mange, små handler."
 }];
 const BADGES = [{
   id: "first_trade",
@@ -807,6 +837,8 @@ function Boersspil() {
   const [stopLossInput, setStopLossInput] = useState("");
   const [badges, setBadges] = useState({});
   const [portfolioHistory, setPortfolioHistory] = useState([]);
+  const [yearNetGain, setYearNetGain] = useState(0);
+  const [taxYear, setTaxYear] = useState(() => new Date().getFullYear());
   const [firstPlayedAt, setFirstPlayedAt] = useState(null);
   const [theme, setTheme] = useState("dark");
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
@@ -832,7 +864,9 @@ function Boersspil() {
     stopLoss,
     badges,
     firstPlayedAt,
-    portfolioHistory
+    portfolioHistory,
+    yearNetGain,
+    taxYear
   };
   const showToast = useCallback((message, type = "info") => {
     setToast({
@@ -969,6 +1003,14 @@ function Boersspil() {
         setBadges(data.badges || {});
         setFirstPlayedAt(data.firstPlayedAt || Date.now());
         setPortfolioHistory(data.portfolioHistory || []);
+        const nowYear = new Date().getFullYear();
+        if (data.taxYear === nowYear) {
+          setYearNetGain(data.yearNetGain || 0);
+          setTaxYear(nowYear);
+        } else {
+          setYearNetGain(0);
+          setTaxYear(nowYear);
+        }
         if (data.stockPrices && data.lastTick) {
           const elapsed = Date.now() - data.lastTick;
           const ticks = Math.min(Math.floor(elapsed / TICK_MS), MAX_CATCHUP_TICKS);
@@ -1007,6 +1049,8 @@ function Boersspil() {
     const badgesVal = overrides.badges ?? base.badges;
     const firstPlayedAtVal = overrides.firstPlayedAt ?? base.firstPlayedAt;
     const portfolioHistoryVal = overrides.portfolioHistory ?? base.portfolioHistory;
+    const yearNetGainVal = overrides.yearNetGain ?? base.yearNetGain;
+    const taxYearVal = overrides.taxYear ?? base.taxYear;
     try {
       const priceMap = {};
       base.stocks.forEach(s => priceMap[s.id] = s.price);
@@ -1020,6 +1064,8 @@ function Boersspil() {
         badges: badgesVal,
         firstPlayedAt: firstPlayedAtVal,
         portfolioHistory: portfolioHistoryVal,
+        yearNetGain: yearNetGainVal,
+        taxYear: taxYearVal,
         stockPrices: priceMap,
         lastTick: Date.now()
       }));
@@ -1206,12 +1252,16 @@ function Boersspil() {
     }
   }, [selected]);
   const buy = (stock, qty) => {
-    const cost = stock.price * qty;
-    if (cost > cash || qty <= 0) return;
-    const newCash = cash - cost;
+    if (qty <= 0) return;
+    const execPrice = getBuyPrice(stock.price);
+    const grossCost = execPrice * qty;
+    const fee = calcFee(grossCost);
+    const totalCost = grossCost + fee;
+    if (totalCost > cash) return;
+    const newCash = cash - totalCost;
     const existing = holdings[stock.id];
     const newQty = (existing?.qty || 0) + qty;
-    const newAvg = existing ? (existing.avgCost * existing.qty + cost) / newQty : stock.price;
+    const newAvg = existing ? (existing.avgCost * existing.qty + totalCost) / newQty : totalCost / qty;
     const newHoldings = {
       ...holdings,
       [stock.id]: {
@@ -1225,15 +1275,16 @@ function Boersspil() {
       stockId: stock.id,
       stockName: stock.name,
       qty,
-      price: stock.price,
-      total: cost,
+      price: execPrice,
+      total: totalCost,
+      fee,
       time: Date.now()
     };
     const newTrades = [trade, ...trades].slice(0, 20);
     setCash(newCash);
     setHoldings(newHoldings);
     setTrades(newTrades);
-    showToast(`Købte ${qty} stk ${stock.name} for ${formatKr(cost)}`, "buy");
+    showToast(`Købte ${qty} stk ${stock.name} for ${formatKr(grossCost)} + ${formatKr(fee)} i kurtage`, "buy");
     saveNow({
       cash: newCash,
       holdings: newHoldings,
@@ -1243,8 +1294,25 @@ function Boersspil() {
   const sell = (stock, qty) => {
     const h = holdings[stock.id];
     if (!h || qty <= 0 || qty > h.qty) return;
-    const proceeds = stock.price * qty;
-    const newCash = cash + proceeds;
+    const execPrice = getSellPrice(stock.price);
+    const grossProceeds = execPrice * qty;
+    const fee = calcFee(grossProceeds);
+    const afterFeeProceeds = grossProceeds - fee;
+    const profit = afterFeeProceeds - h.avgCost * qty;
+    let tax = 0;
+    let newYearNetGain = yearNetGain;
+    if (profit > 0) {
+      const oldBase = yearNetGain;
+      const newBase = oldBase + profit;
+      const taxableAt27 = Math.max(0, Math.min(newBase, TAX_THRESHOLD) - Math.min(oldBase, TAX_THRESHOLD));
+      const taxableAt42 = profit - taxableAt27;
+      tax = Math.round(taxableAt27 * TAX_LOW + taxableAt42 * TAX_HIGH);
+      newYearNetGain = newBase;
+    } else {
+      newYearNetGain = Math.max(0, yearNetGain + profit);
+    }
+    const netProceeds = afterFeeProceeds - tax;
+    const newCash = cash + netProceeds;
     const remaining = h.qty - qty;
     const newHoldings = {
       ...holdings
@@ -1259,19 +1327,28 @@ function Boersspil() {
       stockId: stock.id,
       stockName: stock.name,
       qty,
-      price: stock.price,
-      total: proceeds,
+      price: execPrice,
+      total: netProceeds,
+      grossTotal: grossProceeds,
+      fee,
+      tax,
       time: Date.now()
     };
     const newTrades = [trade, ...trades].slice(0, 20);
     setCash(newCash);
     setHoldings(newHoldings);
     setTrades(newTrades);
-    showToast(`Solgte ${qty} stk ${stock.name} for ${formatKr(proceeds)}`, "sell");
+    setYearNetGain(newYearNetGain);
+    if (tax > 0) {
+      showToast(`Solgte ${qty} stk ${stock.name} for ${formatKr(grossProceeds)} — kurtage ${formatKr(fee)}, skat ${formatKr(tax)} → ${formatKr(netProceeds)} netto`, "sell");
+    } else {
+      showToast(`Solgte ${qty} stk ${stock.name} for ${formatKr(grossProceeds)} — kurtage ${formatKr(fee)} → ${formatKr(netProceeds)} netto`, "sell");
+    }
     saveNow({
       cash: newCash,
       holdings: newHoldings,
-      trades: newTrades
+      trades: newTrades,
+      yearNetGain: newYearNetGain
     });
   };
   const requestReset = () => {
@@ -1579,7 +1656,9 @@ function Boersspil() {
       ...styles.panelTitle,
       color: "var(--text-secondary)"
     }
-  }, /*#__PURE__*/React.createElement(IconHistory, null), " DINE HANDLER"), trades.length === 0 ? /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(IconHistory, null), " DINE HANDLER"), /*#__PURE__*/React.createElement("div", {
+    style: styles.taxMeta
+  }, "Årets skattepligtige gevinst: ", formatKr(Math.min(yearNetGain, TAX_THRESHOLD)), " af ", formatKr(TAX_THRESHOLD), " kr til 27% — resten beskattes med 42%"), trades.length === 0 ? /*#__PURE__*/React.createElement("div", {
     style: styles.emptyState
   }, "Ingen handler endnu — køb din første aktie ovenfor.") : /*#__PURE__*/React.createElement("div", {
     style: styles.tradesList
@@ -1594,7 +1673,11 @@ function Boersspil() {
     }
   }, t.type), /*#__PURE__*/React.createElement("span", {
     style: styles.tradeStock
-  }, t.qty, " stk ", t.stockName), /*#__PURE__*/React.createElement("span", {
+  }, t.qty, " stk ", t.stockName, t.fee > 0 && /*#__PURE__*/React.createElement("span", {
+    style: styles.tradeTaxNote
+  }, " · kurtage ", formatKr(t.fee)), t.tax > 0 && /*#__PURE__*/React.createElement("span", {
+    style: styles.tradeTaxNote
+  }, " · skat ", formatKr(t.tax))), /*#__PURE__*/React.createElement("span", {
     style: styles.tradeTotal
   }, formatKr(t.total)), /*#__PURE__*/React.createElement("span", {
     style: styles.tradeTime
@@ -1634,7 +1717,9 @@ function Boersspil() {
     size: 18
   })))), /*#__PURE__*/React.createElement("div", {
     style: styles.modalPrice
-  }, selected.price.toFixed(2), " kr / aktie"), /*#__PURE__*/React.createElement(Sparkline, {
+  }, selected.price.toFixed(2), " kr / aktie"), /*#__PURE__*/React.createElement("div", {
+    style: styles.spreadNote
+  }, "Køb: ", getBuyPrice(selected.price).toFixed(2), " kr · Sælg: ", getSellPrice(selected.price).toFixed(2), " kr"), /*#__PURE__*/React.createElement(Sparkline, {
     data: selected.history,
     color: "#00D97E",
     height: 80
@@ -1655,41 +1740,55 @@ function Boersspil() {
   }), /*#__PURE__*/React.createElement("button", {
     style: styles.qtyBtn,
     onClick: () => setQtyInput(q => q + 1)
-  }, "+")), /*#__PURE__*/React.createElement("div", {
-    style: styles.costPreview
-  }, "Total: ", formatKr(selected.price * qtyInput)), /*#__PURE__*/React.createElement("div", {
-    style: styles.maxRow
-  }, /*#__PURE__*/React.createElement("button", {
-    style: styles.maxBtn,
-    disabled: Math.floor(cash / selected.price) < 1,
-    onClick: () => setQtyInput(Math.max(1, Math.floor(cash / selected.price)))
-  }, "Maks køb (", Math.floor(cash / selected.price), " stk)"), /*#__PURE__*/React.createElement("button", {
-    style: styles.maxBtn,
-    disabled: !holdings[selected.id],
-    onClick: () => setQtyInput(holdings[selected.id]?.qty || 1)
-  }, "Maks sælg (", holdings[selected.id]?.qty || 0, " stk)")), /*#__PURE__*/React.createElement("div", {
-    style: styles.actionRow
-  }, /*#__PURE__*/React.createElement("button", {
-    style: {
-      ...styles.actionBtn,
-      background: "#00D97E"
-    },
-    disabled: selected.price * qtyInput > cash,
-    onClick: () => {
-      buy(selected, qtyInput);
-      setSelected(null);
-    }
-  }, "Køb"), /*#__PURE__*/React.createElement("button", {
-    style: {
-      ...styles.actionBtn,
-      background: "#FF4757"
-    },
-    disabled: !holdings[selected.id] || qtyInput > (holdings[selected.id]?.qty || 0),
-    onClick: () => {
-      sell(selected, qtyInput);
-      setSelected(null);
-    }
-  }, "Sælg")), holdings[selected.id] && /*#__PURE__*/React.createElement("div", {
+  }, "+")), (() => {
+    const buyPrice = getBuyPrice(selected.price);
+    const sellPrice = getSellPrice(selected.price);
+    const buyGross = buyPrice * qtyInput;
+    const buyFee = calcFee(buyGross);
+    const buyTotal = buyGross + buyFee;
+    const sellGross = sellPrice * qtyInput;
+    const sellFee = calcFee(sellGross);
+    const sellTotal = sellGross - sellFee;
+    const maxBuyQty = calcMaxBuyQty(buyPrice, cash);
+    const ownedQty = holdings[selected.id]?.qty || 0;
+    return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+      style: styles.costPreview
+    }, "Ved køb: ", formatKr(buyTotal), " (inkl. ", formatKr(buyFee), " i kurtage)"), /*#__PURE__*/React.createElement("div", {
+      style: styles.costPreview
+    }, "Ved salg: ", formatKr(sellTotal), " (efter ", formatKr(sellFee), " i kurtage, før skat)"), /*#__PURE__*/React.createElement("div", {
+      style: styles.maxRow
+    }, /*#__PURE__*/React.createElement("button", {
+      style: styles.maxBtn,
+      disabled: maxBuyQty < 1,
+      onClick: () => setQtyInput(Math.max(1, maxBuyQty))
+    }, "Maks køb (", maxBuyQty, " stk)"), /*#__PURE__*/React.createElement("button", {
+      style: styles.maxBtn,
+      disabled: !ownedQty,
+      onClick: () => setQtyInput(ownedQty || 1)
+    }, "Maks sælg (", ownedQty, " stk)")), /*#__PURE__*/React.createElement("div", {
+      style: styles.actionRow
+    }, /*#__PURE__*/React.createElement("button", {
+      style: {
+        ...styles.actionBtn,
+        background: "#00D97E"
+      },
+      disabled: buyTotal > cash,
+      onClick: () => {
+        buy(selected, qtyInput);
+        setSelected(null);
+      }
+    }, "Køb"), /*#__PURE__*/React.createElement("button", {
+      style: {
+        ...styles.actionBtn,
+        background: "#FF4757"
+      },
+      disabled: !ownedQty || qtyInput > ownedQty,
+      onClick: () => {
+        sell(selected, qtyInput);
+        setSelected(null);
+      }
+    }, "Sælg")));
+  })(), holdings[selected.id] && /*#__PURE__*/React.createElement("div", {
     style: styles.stopLossBox
   }, /*#__PURE__*/React.createElement("div", {
     style: styles.stopLossLabel
@@ -2291,6 +2390,12 @@ const styles = {
     borderRadius: 10,
     padding: 14
   },
+  taxMeta: {
+    fontSize: 11,
+    color: "var(--text-muted)",
+    lineHeight: 1.5,
+    marginBottom: 10
+  },
   tradesList: {
     display: "flex",
     flexDirection: "column",
@@ -2314,6 +2419,10 @@ const styles = {
   tradeStock: {
     flex: 1,
     color: "#C7CCD4"
+  },
+  tradeTaxNote: {
+    color: "#FF4757",
+    fontSize: 11
   },
   tradeTotal: {
     fontFamily: "'IBM Plex Mono', monospace",
@@ -2412,6 +2521,11 @@ const styles = {
     fontSize: 22,
     fontWeight: 700,
     color: "#00D97E"
+  },
+  spreadNote: {
+    fontSize: 11.5,
+    color: "var(--text-muted)",
+    fontFamily: "'IBM Plex Mono', monospace"
   },
   holdingInfo: {
     fontSize: 12,
