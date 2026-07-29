@@ -69,6 +69,8 @@ const TAX_LOW = 0.27;
 const TAX_HIGH = 0.42;
 const DIVIDEND_RATE = 0.004; // udbytte pr. udbetaling for "Stabil"-aktier (forenklet spilmekanik)
 const DIVIDEND_INTERVAL_MS = 90000; // udbetales ca. hvert 90. sekund
+const MAX_FAVORITES = 7; // loft for at tvinge prioritering i stedet for at favoritmarkere alt
+const RUMOR_RELIABILITY = 0.8; // 80% af rygter rammer som varslet, 20% vender om eller fizzler ud
 const FEE_RATE = 0.0015; // 0,15% kurtage
 const FEE_MIN = 39; // minimumsgebyr i kr, ligesom hos Nordnet/Saxo
 const SPREAD = 0.003; // 0,3% samlet bid-ask spread
@@ -180,6 +182,18 @@ const SEED_STOCKS = [{
   price: 24000,
   vol: 0.055,
   category: "Krypto"
+}, {
+  id: "SOL",
+  name: "Solana",
+  price: 1400,
+  vol: 0.058,
+  category: "Krypto"
+}, {
+  id: "DOGE",
+  name: "Dogecoin",
+  price: 0.9,
+  vol: 0.09,
+  category: "Krypto"
 }];
 const NEWS_UP = ["overrasker markedet med stærkere regnskab end ventet", "får opgraderet anbefaling af flere analytikere", "vinder stor ny kontrakt", "løfter forventningerne til resten af året", "nyder godt af stigende efterspørgsel"];
 const NEWS_DOWN = ["skuffer med regnskab under forventning", "nedjusteres af flere analytikere", "taber en stor kunde", "advarer om lavere indtjening end ventet", "rammes af stigende omkostninger"];
@@ -243,10 +257,20 @@ const STOCK_NEWS = {
   ETH: {
     up: ["stiger efter en vellykket teknisk opdatering af netværket", "nyder godt af stigende brug indenfor digitale kontrakter", "får medvind fra øget udvikleraktivitet"],
     down: ["falder efter tekniske problemer med netværket", "rammes af bekymring om konkurrerende teknologier", "presses af faldende interesse fra investorer"]
+  },
+  SOL: {
+    up: ["stiger efter stigende aktivitet på netværket", "nyder godt af flere nye projekter der bygges på platformen", "får medvind fra positive udmeldinger om samarbejder"],
+    down: ["falder efter en midlertidig nedetid på netværket", "rammes af bekymring om konkurrerende blockchain-platforme", "presses af faldende investorinteresse"]
+  },
+  DOGE: {
+    up: ["eksploderer i pris efter viral opmærksomhed på sociale medier", "stiger vildt efter en kendt person nævner den online", "rider med på en bølge af spekulativ købsfeber"],
+    down: ["styrtdykker efter interessen fra sociale medier hurtigt forsvinder", "falder brat da spekulanter tager profit", "rammes hårdt af manglende reelt nyt at bygge kursen på"]
   }
 };
 const MACRO_NEWS_UP = ["Renten sættes ned, og hele markedet stiger", "Optimisme skyller ind over aktiemarkedet efter positive nøgletal", "Gode globale vækstforventninger løfter aktiemarkedet bredt"];
 const MACRO_NEWS_DOWN = ["Renteforhøjelse rammer hele markedet", "Uro på de globale markeder presser aktier bredt ned", "Svage nøgletal skaber usikkerhed på tværs af markedet"];
+const MACRO_RUMOR_UP = ["Markedet venter spændt på nøgletal der kan løfte aktierne bredt", "Forventninger om en rentenedsættelse spirer blandt investorer", "Stigende optimisme ses på tværs af markedet forud for nye nøgletal"];
+const MACRO_RUMOR_DOWN = ["Bekymring breder sig blandt investorer forud for kommende nøgletal", "Frygt for en renteforhøjelse spirer på markedet", "Stigende usikkerhed ses på tværs af markedet forud for nye nøgletal"];
 const CATEGORY_COLORS = {
   Stabil: {
     bg: "rgba(74,144,217,0.15)",
@@ -696,7 +720,7 @@ const LEARN_SECTIONS = [{
   body: "Selskaber hvis indtjening følger økonomien op og ned — som shipping, banker og luksusvarer. Går det godt i samfundet generelt, går det ofte godt for dem også, og omvendt i nedgangstider. Timing betyder meget for disse aktier."
 }, {
   title: "Risiko og udsving (volatilitet)",
-  body: "Volatilitet er et udtryk for hvor meget en akties kurs svinger. Høj volatilitet betyder store udsving — mulighed for store gevinster, men også store tab på kort tid. Lav volatilitet er roligere, men typisk også med mere begrænset opside."
+  body: "Volatilitet er et udtryk for hvor meget en akties kurs svinger. Høj volatilitet betyder store udsving — mulighed for store gevinster, men også store tab på kort tid. Lav volatilitet er roligere, men typisk også med mere begrænset opside. Bemærk også at rygter i spillet kun rammer rigtigt omkring 80% af tiden — resten af gangene vender de om eller fizzler ud, så det aldrig er en garanteret gevinst at handle på et rygte."
 }, {
   title: "Spred dine æg ud (diversificering)",
   body: "At sprede sine penge over flere forskellige aktier og kategorier, i stedet for at satse alt på én, mindsker risikoen. Går én aktie dårligt, vejer det ikke helt så tungt hvis resten af porteføljen klarer sig fint."
@@ -924,6 +948,7 @@ function Boersspil() {
   const resetTimerRef = useRef(null);
   const stateRef = useRef({});
   const pendingMovesRef = useRef({});
+  const pendingMacroRef = useRef(null);
   stateRef.current = {
     cash,
     holdings,
@@ -967,12 +992,45 @@ function Boersspil() {
         const triggeredStopLossIds = [];
         const pending = pendingMovesRef.current;
         let macroEvent = null;
-        if (Math.random() < 0.03) {
+        const pendingMacro = pendingMacroRef.current;
+        if (pendingMacro) {
+          pendingMacro.ticksLeft -= 1;
+          if (pendingMacro.ticksLeft <= 0) {
+            let actualUp = pendingMacro.up;
+            let actualMagnitude = pendingMacro.magnitude;
+            if (Math.random() >= RUMOR_RELIABILITY) {
+              if (Math.random() < 0.5) {
+                actualUp = !pendingMacro.up;
+              } else {
+                actualMagnitude = pendingMacro.magnitude * (0.1 + Math.random() * 0.2);
+              }
+            }
+            macroEvent = {
+              up: actualUp,
+              magnitude: actualMagnitude
+            };
+            pendingMacroRef.current = null;
+          }
+        } else if (Math.random() < 0.03) {
           const up = Math.random() < 0.5;
-          macroEvent = {
+          const magnitude = 0.02 + Math.random() * 0.04;
+          pendingMacroRef.current = {
+            ticksLeft: 1 + Math.floor(Math.random() * 2),
             up,
-            magnitude: 0.02 + Math.random() * 0.04
+            magnitude
           };
+          const pool = up ? MACRO_RUMOR_UP : MACRO_RUMOR_DOWN;
+          const macroHeadline = pool[Math.floor(Math.random() * pool.length)];
+          newsItems.push({
+            id: `macro-rumor-${Date.now()}-${Math.random()}`,
+            stockName: "Markedet",
+            headline: macroHeadline,
+            up,
+            macro: true,
+            rumor: true,
+            time: Date.now()
+          });
+          showToast(`Marked: ${macroHeadline}`, "info");
         }
         const updated = prev.map(s => {
           const trend = s.price > s.prev ? 1 : s.price < s.prev ? -1 : 0;
@@ -983,10 +1041,19 @@ function Boersspil() {
           if (scheduled) {
             scheduled.ticksLeft -= 1;
             if (scheduled.ticksLeft <= 0) {
-              const drift = scheduled.up ? scheduled.magnitude : -scheduled.magnitude;
+              let actualUp = scheduled.up;
+              let actualMagnitude = scheduled.magnitude;
+              if (Math.random() >= RUMOR_RELIABILITY) {
+                if (Math.random() < 0.5) {
+                  actualUp = !scheduled.up; // rygtet vendte om
+                } else {
+                  actualMagnitude = scheduled.magnitude * (0.1 + Math.random() * 0.2); // rygtet fizzlede ud
+                }
+              }
+              const drift = actualUp ? actualMagnitude : -actualMagnitude;
               next = Math.round(Math.max(0.5, s.price * (1 + drift)) * 100) / 100;
               bigMoveNow = true;
-              upNow = scheduled.up;
+              upNow = actualUp;
               delete pending[s.id];
             } else {
               next = tickSmall(s.price, s.vol, trend);
@@ -1340,11 +1407,21 @@ function Boersspil() {
   }, [theme]);
   const toggleFavorite = id => {
     setFavorites(prev => {
-      const next = {
-        ...prev
+      if (prev[id]) {
+        const next = {
+          ...prev
+        };
+        delete next[id];
+        return next;
+      }
+      if (Object.keys(prev).length >= MAX_FAVORITES) {
+        showToast(`Du kan højst have ${MAX_FAVORITES} favoritter ad gangen`, "error");
+        return prev;
+      }
+      return {
+        ...prev,
+        [id]: true
       };
-      if (next[id]) delete next[id];else next[id] = true;
-      return next;
     });
   };
   const setStopLossFor = stock => {
@@ -1677,7 +1754,7 @@ function Boersspil() {
   }, /*#__PURE__*/React.createElement(IconStar, {
     size: 13,
     filled: showOnlyFavorites
-  }), " Kun favoritter"), /*#__PURE__*/React.createElement("button", {
+  }), " Favoritter (", Object.keys(favorites).length, "/", MAX_FAVORITES, ")"), /*#__PURE__*/React.createElement("button", {
     style: {
       ...styles.filterToggle,
       ...(showOnlyOwned ? styles.filterToggleActive : {})
