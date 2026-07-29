@@ -142,6 +142,18 @@ const SEED_STOCKS = [{
   price: 105,
   vol: 0.032,
   category: "Vækst"
+}, {
+  id: "BTC",
+  name: "Bitcoin",
+  price: 650000,
+  vol: 0.06,
+  category: "Krypto"
+}, {
+  id: "ETH",
+  name: "Ethereum",
+  price: 24000,
+  vol: 0.055,
+  category: "Krypto"
 }];
 const NEWS_UP = ["overrasker markedet med stærkere regnskab end ventet", "får opgraderet anbefaling af flere analytikere", "vinder stor ny kontrakt", "løfter forventningerne til resten af året", "nyder godt af stigende efterspørgsel"];
 const NEWS_DOWN = ["skuffer med regnskab under forventning", "nedjusteres af flere analytikere", "taber en stor kunde", "advarer om lavere indtjening end ventet", "rammes af stigende omkostninger"];
@@ -159,6 +171,10 @@ const CATEGORY_COLORS = {
   Cyklisk: {
     bg: "rgba(232,163,61,0.15)",
     fg: "#E8A33D"
+  },
+  Krypto: {
+    bg: "rgba(255,107,157,0.15)",
+    fg: "#FF6B9D"
   }
 };
 
@@ -557,6 +573,24 @@ function IconMoon({
     d: "M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"
   }));
 }
+function IconChartLine({
+  size = 14
+}) {
+  return /*#__PURE__*/React.createElement("svg", {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, /*#__PURE__*/React.createElement("path", {
+    d: "M3 3v18h18"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "m19 9-5 5-4-4-4 4"
+  }));
+}
 const LEARN_SECTIONS = [{
   title: "Hvad er en aktie?",
   body: "En aktie er en lille ejerandel i et selskab. Køber du en aktie i Novo Nordisk, ejer du en lillebitte del af virksomheden. Stiger virksomhedens værdi, stiger aktien typisk også — og omvendt hvis det går dårligt."
@@ -763,6 +797,7 @@ function Boersspil() {
   })));
   const [selected, setSelected] = useState(null);
   const [showLearn, setShowLearn] = useState(false);
+  const [showAllNews, setShowAllNews] = useState(false);
   const [qtyInput, setQtyInput] = useState(1);
   const [loadedStorage, setLoadedStorage] = useState(false);
   const [toast, setToast] = useState(null);
@@ -771,6 +806,7 @@ function Boersspil() {
   const [stopLoss, setStopLoss] = useState({});
   const [stopLossInput, setStopLossInput] = useState("");
   const [badges, setBadges] = useState({});
+  const [portfolioHistory, setPortfolioHistory] = useState([]);
   const [firstPlayedAt, setFirstPlayedAt] = useState(null);
   const [theme, setTheme] = useState("dark");
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
@@ -795,7 +831,8 @@ function Boersspil() {
     favorites,
     stopLoss,
     badges,
-    firstPlayedAt
+    firstPlayedAt,
+    portfolioHistory
   };
   const showToast = useCallback((message, type = "info") => {
     setToast({
@@ -896,7 +933,7 @@ function Boersspil() {
             history: hist
           };
         });
-        if (newsItems.length) setNews(n => [...newsItems, ...n].slice(0, 8));
+        if (newsItems.length) setNews(n => [...newsItems, ...n].slice(0, 200));
         if (triggeredStopLossIds.length) {
           setStopLoss(prevSL => {
             const nextSL = {
@@ -931,6 +968,7 @@ function Boersspil() {
         setStopLoss(data.stopLoss || {});
         setBadges(data.badges || {});
         setFirstPlayedAt(data.firstPlayedAt || Date.now());
+        setPortfolioHistory(data.portfolioHistory || []);
         if (data.stockPrices && data.lastTick) {
           const elapsed = Date.now() - data.lastTick;
           const ticks = Math.min(Math.floor(elapsed / TICK_MS), MAX_CATCHUP_TICKS);
@@ -968,6 +1006,7 @@ function Boersspil() {
     const stopLossVal = overrides.stopLoss ?? base.stopLoss;
     const badgesVal = overrides.badges ?? base.badges;
     const firstPlayedAtVal = overrides.firstPlayedAt ?? base.firstPlayedAt;
+    const portfolioHistoryVal = overrides.portfolioHistory ?? base.portfolioHistory;
     try {
       const priceMap = {};
       base.stocks.forEach(s => priceMap[s.id] = s.price);
@@ -980,6 +1019,7 @@ function Boersspil() {
         stopLoss: stopLossVal,
         badges: badgesVal,
         firstPlayedAt: firstPlayedAtVal,
+        portfolioHistory: portfolioHistoryVal,
         stockPrices: priceMap,
         lastTick: Date.now()
       }));
@@ -1053,9 +1093,29 @@ function Boersspil() {
     if (trades.length >= 10) unlockBadge("ten_trades");
   }, [trades.length, unlockBadge]);
   useEffect(() => {
-    const allOwned = SEED_STOCKS.every(s => (holdings[s.id]?.qty || 0) > 0);
+    const allOwned = SEED_STOCKS.filter(s => s.category !== "Krypto").every(s => (holdings[s.id]?.qty || 0) > 0);
     if (allOwned) unlockBadge("owned_all");
   }, [holdings, unlockBadge]);
+
+  // Optag et øjebliksbillede af den samlede porteføljeværdi med jævne mellemrum, til graf over tid
+  useEffect(() => {
+    if (!loadedStorage || !playerName) return;
+    const record = () => {
+      const base = stateRef.current;
+      const pv = base.stocks.reduce((sum, s) => sum + (base.holdings[s.id] ? base.holdings[s.id].qty * s.price : 0), 0);
+      const tv = base.cash + pv;
+      setPortfolioHistory(prev => {
+        const next = [...prev, {
+          time: Date.now(),
+          value: tv
+        }].slice(-100);
+        return next;
+      });
+    };
+    record();
+    const t = setInterval(record, 60000);
+    return () => clearInterval(t);
+  }, [loadedStorage, playerName]);
   useEffect(() => {
     if (!firstPlayedAt) return;
     const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -1469,13 +1529,28 @@ function Boersspil() {
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       ...styles.panelTitle,
+      color: "#00D97E"
+    }
+  }, /*#__PURE__*/React.createElement(IconChartLine, null), " DIN UDVIKLING"), portfolioHistory.length < 2 ? /*#__PURE__*/React.createElement("div", {
+    style: styles.emptyState
+  }, "Spil lidt længere, så dukker din udvikling op her.") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Sparkline, {
+    data: portfolioHistory.map(p => p.value),
+    color: portfolioHistory[portfolioHistory.length - 1].value >= portfolioHistory[0].value ? "#00D97E" : "#FF4757",
+    height: 50
+  }), /*#__PURE__*/React.createElement("div", {
+    style: styles.portfolioGraphMeta
+  }, "Fra ", formatKr(portfolioHistory[0].value), " til ", formatKr(portfolioHistory[portfolioHistory.length - 1].value)))), /*#__PURE__*/React.createElement("div", {
+    style: styles.sidebar
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...styles.panelTitle,
       color: "#7FB3E8"
     }
   }, /*#__PURE__*/React.createElement(IconNewspaper, null), " NYHEDER"), /*#__PURE__*/React.createElement("div", {
     style: styles.newsList
   }, news.length === 0 && /*#__PURE__*/React.createElement("div", {
     style: styles.emptyState
-  }, "Ingen store nyheder endnu."), news.map(n => /*#__PURE__*/React.createElement("div", {
+  }, "Ingen store nyheder endnu."), news.slice(0, 8).map(n => /*#__PURE__*/React.createElement("div", {
     key: n.id,
     style: styles.newsItem
   }, n.rumor && /*#__PURE__*/React.createElement("span", {
@@ -1487,7 +1562,10 @@ function Boersspil() {
     }
   }, n.stockName), " ", n.headline, /*#__PURE__*/React.createElement("div", {
     style: styles.newsTime
-  }, formatTime(n.time)))))))), /*#__PURE__*/React.createElement("div", {
+  }, formatTime(n.time))))), news.length > 8 && /*#__PURE__*/React.createElement("button", {
+    style: styles.showAllNewsBtn,
+    onClick: () => setShowAllNews(true)
+  }, "Vis alle (", news.length, ")")))), /*#__PURE__*/React.createElement("div", {
     style: styles.tradesPanel
   }, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -1719,7 +1797,39 @@ function Boersspil() {
   }, "Prøv igen"), /*#__PURE__*/React.createElement("button", {
     style: styles.quizBackBtn,
     onClick: () => setQuizStep(-1)
-  }, "Tilbage til gennemgangen")))), toast && /*#__PURE__*/React.createElement("div", {
+  }, "Tilbage til gennemgangen")))), showAllNews && /*#__PURE__*/React.createElement("div", {
+    style: styles.modalOverlay,
+    onClick: () => setShowAllNews(false)
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.learnModal,
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.modalHeader
+  }, /*#__PURE__*/React.createElement("div", {
+    style: styles.modalSym
+  }, "Alle nyheder"), /*#__PURE__*/React.createElement("button", {
+    style: styles.closeBtn,
+    onClick: () => setShowAllNews(false),
+    "aria-label": "Luk"
+  }, /*#__PURE__*/React.createElement(IconX, {
+    size: 18
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: styles.learnScroll
+  }, news.length === 0 && /*#__PURE__*/React.createElement("div", {
+    style: styles.emptyState
+  }, "Ingen nyheder endnu."), news.map(n => /*#__PURE__*/React.createElement("div", {
+    key: n.id,
+    style: styles.newsItem
+  }, n.rumor && /*#__PURE__*/React.createElement("span", {
+    style: styles.rumorTag
+  }, "RYGTE"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: n.up ? "#00D97E" : "#FF4757",
+      fontWeight: 700
+    }
+  }, n.stockName), " ", n.headline, /*#__PURE__*/React.createElement("div", {
+    style: styles.newsTime
+  }, formatTime(n.time))))))), toast && /*#__PURE__*/React.createElement("div", {
     style: {
       ...styles.toast,
       borderColor: toast.type === "error" ? "#FF4757" : toast.type === "sell" ? "#FF4757" : "#00D97E"
@@ -2145,6 +2255,22 @@ const styles = {
     borderRadius: 6,
     marginRight: 6,
     letterSpacing: 0.5
+  },
+  showAllNewsBtn: {
+    width: "100%",
+    marginTop: 10,
+    background: "transparent",
+    border: "1px solid var(--border)",
+    color: "var(--text-secondary)",
+    borderRadius: 8,
+    padding: "8px",
+    fontSize: 12,
+    cursor: "pointer"
+  },
+  portfolioGraphMeta: {
+    fontSize: 11,
+    color: "var(--text-muted)",
+    marginTop: 6
   },
   newsTime: {
     fontSize: 10.5,
