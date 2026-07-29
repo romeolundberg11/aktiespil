@@ -1,4 +1,4 @@
-const CACHE_NAME = "boersspil-cache-v1";
+const CACHE_NAME = "boersspil-cache-v2";
 const ASSETS = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (event) => {

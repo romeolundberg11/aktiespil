@@ -1538,15 +1538,15 @@ function Boersspil() {
       ...styles.panelTitle,
       color: "#00D97E"
     }
-  }, /*#__PURE__*/React.createElement(IconChartLine, null), " DIN UDVIKLING"), portfolioHistory.length < 2 ? /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(IconChartLine, null), " DIN UDVIKLING"), portfolioHistory.length < 1 ? /*#__PURE__*/React.createElement("div", {
     style: styles.emptyState
   }, "Spil lidt længere, så dukker din udvikling op her.") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(Sparkline, {
-    data: portfolioHistory.map(p => p.value),
-    color: portfolioHistory[portfolioHistory.length - 1].value >= portfolioHistory[0].value ? "#00D97E" : "#FF4757",
+    data: [...portfolioHistory.map(p => p.value), totalValue],
+    color: totalValue >= portfolioHistory[0].value ? "#00D97E" : "#FF4757",
     height: 50
   }), /*#__PURE__*/React.createElement("div", {
     style: styles.portfolioGraphMeta
-  }, "Fra ", formatKr(portfolioHistory[0].value), " til ", formatKr(portfolioHistory[portfolioHistory.length - 1].value)))), /*#__PURE__*/React.createElement("div", {
+  }, "Fra ", formatKr(portfolioHistory[0].value), " til ", formatKr(totalValue)))), /*#__PURE__*/React.createElement("div", {
     style: styles.sidebar
   }, /*#__PURE__*/React.createElement("div", {
     style: {
