@@ -1105,7 +1105,16 @@ function Boersspil() {
       const pv = base.stocks.reduce((sum, s) => sum + (base.holdings[s.id] ? base.holdings[s.id].qty * s.price : 0), 0);
       const tv = base.cash + pv;
       setPortfolioHistory(prev => {
-        const next = [...prev, {
+        let history = prev;
+        // Ingen tidligere historik gemt endnu (fx fordi grafen lige er tilføjet) - genskab et
+        // ærligt startpunkt ud fra hvornår du begyndte at spille, så grafen viser den reelle udvikling.
+        if (history.length === 0 && base.firstPlayedAt) {
+          history = [{
+            time: base.firstPlayedAt,
+            value: START_CASH
+          }];
+        }
+        const next = [...history, {
           time: Date.now(),
           value: tv
         }].slice(-100);
